@@ -150,3 +150,12 @@ sequenceDiagram
 - `POST /api/admin/clear-logs`: Purges all rows from the `clicks` table in SQLite.
 - `GET /api/admin/event-focus`: Returns current `{ activeFocusId: N, focusLocked: bool }` configuration variables.
 - `POST /api/admin/event-focus`: Updates the in-memory global config variables.
+
+---
+
+## 5. Dual-Theme Engine
+
+Both the user portal and admin dashboard support client-side theme selection:
+- **Vercel Dark** (`default`): Slate panels (`#18181b`), deep violet text highlights (`#8b5cf6`), and clean white headers.
+- **Cyberpunk Matrix** (`body.theme-matrix`): Dark obsidian panels (`rgba(10, 20, 13, 0.7)`), bright matrix green highlights (`#00ff66`), and monospace terminal fonts.
+- **State Management**: Theme settings are persisted locally via `localStorage` keys `rw_theme` (user portal) and `rw_theme_admin` (admin console). Toggling the theme changes the class list on `document.body` and triggers a real-time redraw of the Chart.js grid coordinates to match the theme background.

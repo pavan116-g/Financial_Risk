@@ -80,6 +80,7 @@ async function enterApp() {
   authScreen.classList.add('hidden');
   appScreen.classList.remove('hidden');
   whoami.textContent = localStorage.getItem('rw_username');
+  initTheme();
   await loadRisks();
 
   // High-frequency polling to check presenter focus updates during live event
@@ -236,9 +237,31 @@ async function trackClick(riskId) {
   } catch (e) { /* non-blocking */ }
 }
 
+// Theme Manager
+function initTheme() {
+  const savedTheme = localStorage.getItem('rw_theme');
+  if (savedTheme === 'matrix') {
+    document.body.classList.add('theme-matrix');
+  } else {
+    document.body.classList.remove('theme-matrix');
+  }
+
+  const toggleBtn = document.getElementById('themeToggleBtn');
+  if (toggleBtn && !toggleBtn.dataset.wired) {
+    toggleBtn.addEventListener('click', () => {
+      const isMatrix = document.body.classList.toggle('theme-matrix');
+      localStorage.setItem('rw_theme', isMatrix ? 'matrix' : 'vercel');
+    });
+    toggleBtn.dataset.wired = 'true';
+  }
+}
+
 // Boot
 (function init() {
   setMode('login');
+  initTheme();
   const token = localStorage.getItem('rw_token');
-  if (token) enterApp();
+  if (token) {
+    enterApp();
+  }
 })();

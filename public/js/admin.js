@@ -56,6 +56,7 @@ let currentActiveRiskId = 1;
 
 async function boot() {
   document.getElementById('adminWhoami').textContent = localStorage.getItem('rw_admin_username');
+  initAdminTheme();
   await Promise.all([loadSummary(), loadUsers(), loadRecent(), loadEventFocusState()]);
   setupEventFocusListeners();
 }
@@ -95,14 +96,14 @@ async function loadSummary() {
   const chartLabels = perUser.map(u => u.name);
   const chartData = perUser.map(u => u.clicks);
   
-  // Glowing cybersecurity chart segments
-  const segmentColors = ['#00f0ff', '#ff3b6b', '#ffb300', '#00e676', '#9d3bff', '#ff6d00', '#00b0ff', '#f50057', '#00e5ff', '#ffeb3b'];
+  // Modern SaaS color palette
+  const segmentColors = ['#6366f1', '#4f46e5', '#3b82f6', '#8b5cf6', '#ec4899', '#a855f7', '#06b6d4', '#1d4ed8', '#10b981', '#f43f5e'];
   const data = {
     labels: chartLabels,
     datasets: [{
       data: chartData,
       backgroundColor: chartLabels.map((_, i) => segmentColors[i % segmentColors.length]),
-      borderColor: '#0b1120',
+      borderColor: '#161626',
       borderWidth: 2,
     }],
   };
@@ -120,8 +121,8 @@ async function loadSummary() {
       },
       scales: {
         r: {
-          grid: { color: 'rgba(0, 240, 255, 0.12)' },
-          angleLines: { color: 'rgba(0, 240, 255, 0.12)' },
+          grid: { color: document.body.classList.contains('theme-matrix') ? 'rgba(0, 255, 102, 0.15)' : 'rgba(139, 92, 246, 0.15)' },
+          angleLines: { color: document.body.classList.contains('theme-matrix') ? 'rgba(0, 255, 102, 0.15)' : 'rgba(139, 92, 246, 0.15)' },
           ticks: { display: false }
         }
       },
@@ -475,6 +476,34 @@ async function loadEventFocusState() {
   } catch (err) {
     console.error('Error loading focus state:', err);
   }
+}
+
+function initAdminTheme() {
+  const savedTheme = localStorage.getItem('rw_theme_admin');
+  if (savedTheme === 'matrix') {
+    document.body.classList.add('theme-matrix');
+  } else {
+    document.body.classList.remove('theme-matrix');
+  }
+
+  const toggleBtn = document.getElementById('adminThemeToggle');
+  if (toggleBtn && !toggleBtn.dataset.wired) {
+    toggleBtn.addEventListener('click', () => {
+      const isMatrix = document.body.classList.toggle('theme-matrix');
+      localStorage.setItem('rw_theme_admin', isMatrix ? 'matrix' : 'vercel');
+      updateChartColors();
+    });
+    toggleBtn.dataset.wired = 'true';
+  }
+}
+
+function updateChartColors() {
+  if (!riskChart) return;
+  const isMatrix = document.body.classList.contains('theme-matrix');
+  const lineColor = isMatrix ? 'rgba(0, 255, 102, 0.15)' : 'rgba(139, 92, 246, 0.15)';
+  riskChart.options.scales.r.grid.color = lineColor;
+  riskChart.options.scales.r.angleLines.color = lineColor;
+  riskChart.update();
 }
 
 checkViewport();

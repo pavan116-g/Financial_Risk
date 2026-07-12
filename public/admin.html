@@ -46,8 +46,9 @@
     <div class="nav-item active" id="navBtnOverview">Security Console</div>
     <div class="nav-item" id="navBtnUsers">Access Logs</div>
     <div class="nav-item" id="navBtnRisks">Threat Database</div>
-    <div class="sidebar-foot">
-      Signed in as <span id="adminWhoami" class="mono"></span>
+    <div class="sidebar-foot" style="display:flex; flex-direction:column; gap:4px;">
+      <div>Signed in as <span id="adminWhoami" class="mono"></span></div>
+      <button class="theme-toggle-btn" id="adminThemeToggle">Toggle Theme</button>
       <button id="adminLogout">Sign out</button>
     </div>
   </div>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RiskWatch // Security Operations Center (SOC)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/admin.css">
+<script src="/js/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- Gate that blocks small/mobile viewports -->
+<div id="desktopGate" class="hidden">
+  <svg class="dial" viewBox="0 0 60 60"><use href="#riskDial"/></svg>
+  <h2>Desktop view required</h2>
+  <p>The RiskWatch admin dashboard is built for a desktop screen. Please open this page on a laptop or desktop browser (window width of at least 1000px).</p>
+</div>
+
+<!-- LOGIN -->
+<div id="loginWrap" class="login-wrap">
+  <div class="login-card">
+    <svg class="dial" viewBox="0 0 60 60"><use href="#riskDial"/></svg>
+    <h1>SOC Console Access</h1>
+    <p class="sub">Threat intelligence metrics and terminal interaction telemetry.</p>
+    <div id="loginError" class="error-msg hidden"></div>
+    <form id="loginForm">
+      <div class="field">
+        <label>Username</label>
+        <input id="adminUser" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="adminPass" type="password" required />
+      </div>
+      <button class="btn-primary" type="submit">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashWrap" class="dash hidden">
+  <div class="sidebar">
+    <div class="brand"><svg class="dial" viewBox="0 0 60 60"><use href="#riskDial"/></svg>RiskWatch // SOC</div>
+    <div class="nav-item active" id="navBtnOverview">Security Console</div>
+    <div class="nav-item" id="navBtnUsers">Access Logs</div>
+    <div class="nav-item" id="navBtnRisks">Threat Database</div>
+    <div class="sidebar-foot">
+      Signed in as <span id="adminWhoami" class="mono"></span>
+      <button id="adminLogout">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- OVERVIEW TAB -->
+    <div id="tabContentOverview" class="tab-content">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px;">
+        <div>
+          <h1>Security Operations Center (SOC)</h1>
+          <p class="sub" style="margin-bottom: 0;">Live interface telemetry of threat vector interactions.</p>
+        </div>
+        <button id="btnClearLogs" class="btn-danger-outline">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+          Purge Logs
+        </button>
+      </div>
+
+      <div class="kpi-row" style="grid-template-columns: 1fr;">
+        <div class="kpi" style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px;">
+          <div class="label" style="font-size:0.85rem; letter-spacing:0.06em; margin-bottom:0;">ACTIVE PRESENTATION SESSIONS</div>
+          <div class="value" id="kpiActive" style="font-size:1.8rem; line-height:1; color:var(--accent);">—</div>
+        </div>
+      </div>
+
+      <!-- LIVE EVENT PRESENTER CONTROLLER -->
+      <div class="panel-row" style="grid-template-columns: 1fr 1.5fr; margin-bottom: 20px;">
+        <!-- Focus Controller -->
+        <div class="panel" style="display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+          <div>
+            <h3>Live Event Focus</h3>
+            <p class="sub" style="margin-bottom: 8px;">Select active scenario focus to discuss with the audience.</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <select id="eventFocusSelect" style="flex:1; background:var(--surface-2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family:'Space Grotesk', sans-serif; font-size:0.9rem; cursor:pointer;">
+              <!-- Populated dynamically -->
+            </select>
+            <button id="btnNextFocus" class="btn-danger-outline" style="color:var(--accent); border-color:rgba(0, 240, 255, 0.4); display:flex; align-items:center; justify-content:center; padding:10px 14px; gap:6px;">
+              Next Focus
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+            <input type="checkbox" id="enforceFocusLock" checked style="width:16px; height:16px; cursor:pointer;" />
+            <label for="enforceFocusLock" style="font-family:'Space Grotesk', sans-serif; font-size:0.8rem; color:var(--text); cursor:pointer; font-weight:500;">Enforce Presenter Focus Lock</label>
+          </div>
+        </div>
+
+        <!-- Audience Feedback Board -->
+        <div class="panel" style="display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>Faced Focused Threat</h3>
+            <span class="mono" id="eventFocusTally" style="font-size:0.8rem; font-weight:600; color:var(--accent);">0 / 0 scanned</span>
+          </div>
+          <div id="eventFocusUsers" style="flex:1; display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; min-height:60px;">
+            <!-- Operator badges populated dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-row" style="grid-template-columns: 1fr;">
+        <div class="panel">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+            <h3>Telemetry: Scans per Operator</h3>
+            <span style="font-family:'IBM Plex Mono', monospace; font-size:0.68rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.04em;">[Click operator segment to audit dossier]</span>
+          </div>
+          <div style="height: 320px; position: relative;">
+            <canvas id="riskChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-row" style="grid-template-columns: 1.6fr 1fr;">
+        <div class="panel">
+          <h3>Threat Vector Matrix</h3>
+          <div class="tbl-scroll" style="max-height: 380px; overflow: auto;">
+            <table id="matrixTable" style="width: 100%; border-collapse: collapse;">
+              <!-- Populated dynamically -->
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Real-time Threat Event Log</h3>
+          <div class="tbl-scroll">
+            <table>
+              <thead><tr><th>Operator</th><th>Threat Profile</th><th>Timestamp</th></tr></thead>
+              <tbody id="recentTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS TAB -->
+    <div id="tabContentUsers" class="tab-content hidden">
+      <h1>Access Logs & Operators</h1>
+      <p class="sub">Terminal registration directory and interaction telemetry.</p>
+
+      <div class="panel">
+        <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+          <h3>System Operators</h3>
+          <input type="text" id="userSearchInput" placeholder="Search operator..." style="background: var(--surface-2); border:1px solid var(--border); padding: 8px 12px; border-radius:6px; color:var(--text); font-size:0.85rem; width:220px;" />
+        </div>
+        <div class="tbl-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Operator</th>
+                <th>Authorization</th>
+                <th>Handshake Established</th>
+                <th>Database Scans</th>
+                <th>Last Handshake</th>
+              </tr>
+            </thead>
+            <tbody id="tabUsersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RISK CARDS TAB -->
+    <div id="tabContentRisks" class="tab-content hidden">
+      <h1>Threat Database</h1>
+      <p class="sub">Intelligence dossiers and vector statistics per threat profile.</p>
+
+      <div class="panel">
+        <h3>Threat Dossier Directory</h3>
+        <div class="tbl-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Threat Vector</th>
+                <th>Risk Severity</th>
+                <th>Abstract</th>
+                <th>Log Count</th>
+                <th>Unique Operators</th>
+                <th>Priority Index</th>
+              </tr>
+            </thead>
+            <tbody id="tabRisksTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TERMINAL DOSSIER MODAL -->
+<div id="dossierModal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>[TERMINAL_DOSSIER] // <span id="modalOperatorName"></span></h2>
+      <button class="modal-close" id="btnCloseModal">&times;</button>
+    </div>
+    <div class="modal-body" id="modalDossierBody"></div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="riskDial" viewBox="0 0 60 60">
+    <circle cx="30" cy="30" r="26" fill="none" stroke="#24304a" stroke-width="5"/>
+    <circle cx="30" cy="30" r="26" fill="none" stroke="#f2a93b" stroke-width="5"
+      stroke-linecap="round" stroke-dasharray="115 163" transform="rotate(-90 30 30)"/>
+    <circle cx="30" cy="30" r="4" fill="#e5484d"/>
+  </symbol>
+</svg>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>

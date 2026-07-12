@@ -1,0 +1,481 @@
+const API = '';
+
+const desktopGate = document.getElementById('desktopGate');
+const loginWrap = document.getElementById('loginWrap');
+const dashWrap = document.getElementById('dashWrap');
+
+function checkViewport() {
+  const isNarrow = window.innerWidth < 1000;
+  desktopGate.classList.toggle('hidden', !isNarrow);
+  const signedIn = !!localStorage.getItem('rw_admin_token');
+  loginWrap.classList.toggle('hidden', isNarrow || signedIn);
+  dashWrap.classList.toggle('hidden', isNarrow || !signedIn);
+}
+window.addEventListener('resize', checkViewport);
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errBox = document.getElementById('loginError');
+  errBox.classList.add('hidden');
+  const username = document.getElementById('adminUser').value.trim();
+  const password = document.getElementById('adminPass').value;
+  try {
+    const res = await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    if (data.role !== 'admin') throw new Error('This account does not have admin access');
+    localStorage.setItem('rw_admin_token', data.token);
+    localStorage.setItem('rw_admin_username', data.username);
+    checkViewport();
+    boot();
+  } catch (err) {
+    errBox.textContent = err.message;
+    errBox.classList.remove('hidden');
+  }
+});
+
+document.getElementById('adminLogout').addEventListener('click', () => {
+  localStorage.removeItem('rw_admin_token');
+  localStorage.removeItem('rw_admin_username');
+  location.reload();
+});
+
+function authHeaders() {
+  return { Authorization: `Bearer ${localStorage.getItem('rw_admin_token')}` };
+}
+
+let riskChart;
+let cachedUsers = [];
+let cachedRisks = [];
+let cachedMatrix = {};
+let currentActiveRiskId = 1;
+
+async function boot() {
+  document.getElementById('adminWhoami').textContent = localStorage.getItem('rw_admin_username');
+  await Promise.all([loadSummary(), loadUsers(), loadRecent(), loadEventFocusState()]);
+  setupEventFocusListeners();
+}
+
+async function loadSummary() {
+  const res = await fetch(`${API}/api/admin/summary`, { headers: authHeaders() });
+  if (res.status === 401 || res.status === 403) return document.getElementById('adminLogout').click();
+  const { perRisk, perUser, totals } = await res.json();
+
+  // Populate Event Focus Dropdown once
+  const eventFocusSelect = document.getElementById('eventFocusSelect');
+  if (eventFocusSelect && eventFocusSelect.children.length === 0) {
+    eventFocusSelect.innerHTML = perRisk.map(r => `
+      <option value="${r.id}">${r.icon} ${r.title}</option>
+    `).join('');
+    eventFocusSelect.value = currentActiveRiskId;
+  }
+
+  document.getElementById('kpiActive').textContent = totals.active_users;
+
+  // Populate Risk Cards Directory Tab Table
+  const risksTabTbody = document.getElementById('tabRisksTableBody');
+  if (risksTabTbody) {
+    risksTabTbody.innerHTML = perRisk.map(r => `
+      <tr>
+        <td><span style="font-size:1.2rem; margin-right:8px;">${r.icon}</span> <strong>${r.title}</strong></td>
+        <td><span class="pill ${r.severity}">${r.severity}</span></td>
+        <td style="color:#8f9ab3; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.short_desc}">${r.short_desc}</td>
+        <td style="font-weight: 600; color:var(--accent);">${r.clicks}</td>
+        <td>${r.unique_readers}</td>
+        <td class="mono">${r.sort_order}</td>
+      </tr>
+    `).join('') || `<tr><td colspan="6" style="color:#8f9ab3;">No risk cards available.</td></tr>`;
+  }
+
+  const ctx = document.getElementById('riskChart');
+  const chartLabels = perUser.map(u => u.name);
+  const chartData = perUser.map(u => u.clicks);
+  
+  // Glowing cybersecurity chart segments
+  const segmentColors = ['#00f0ff', '#ff3b6b', '#ffb300', '#00e676', '#9d3bff', '#ff6d00', '#00b0ff', '#f50057', '#00e5ff', '#ffeb3b'];
+  const data = {
+    labels: chartLabels,
+    datasets: [{
+      data: chartData,
+      backgroundColor: chartLabels.map((_, i) => segmentColors[i % segmentColors.length]),
+      borderColor: '#0b1120',
+      borderWidth: 2,
+    }],
+  };
+  if (riskChart) { riskChart.data = data; riskChart.update(); return; }
+  riskChart = new Chart(ctx, {
+    type: 'polarArea',
+    data,
+    options: {
+      onClick: (event, elements) => {
+        if (elements.length > 0) {
+          const index = elements[0].index;
+          const name = chartLabels[index];
+          showOperatorScenarios(name);
+        }
+      },
+      scales: {
+        r: {
+          grid: { color: 'rgba(0, 240, 255, 0.12)' },
+          angleLines: { color: 'rgba(0, 240, 255, 0.12)' },
+          ticks: { display: false }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'right',
+          labels: { color: '#eef1f8', font: { family: 'Space Grotesk', size: 11 } }
+        }
+      },
+      responsive: true,
+      maintainAspectRatio: false
+    },
+  });
+}
+
+async function loadUsers() {
+  const res = await fetch(`${API}/api/admin/users-activity`, { headers: authHeaders() });
+  const data = await res.json();
+  cachedUsers = data.users || [];
+  cachedRisks = data.risks || [];
+  cachedMatrix = data.matrix || {};
+  renderMatrixTable();
+  renderUsersDirectory();
+  updateActiveRiskView();
+}
+
+function renderMatrixTable() {
+  const table = document.getElementById('matrixTable');
+  if (!table) return;
+  
+  if (cachedRisks.length === 0 || cachedUsers.length === 0) {
+    table.innerHTML = `<tr><td style="color:#8f9ab3; padding: 10px;">Waiting for system operators to connect...</td></tr>`;
+    return;
+  }
+  
+  // Header Row: Operator Names
+  const headerHtml = `
+    <thead>
+      <tr>
+        <th style="position: sticky; left: 0; background: var(--surface); z-index: 2; min-width: 180px; text-align: left; border-bottom: 1px solid var(--border); padding: 8px 10px;">Threat Vector</th>
+        ${cachedUsers.map(u => {
+          const displayName = u.name ? u.name : u.username;
+          return `<th style="text-align: center; min-width: 90px; white-space: nowrap; border-bottom: 1px solid var(--border); padding: 8px 10px;" title="${displayName}">${displayName}</th>`;
+        }).join('')}
+      </tr>
+    </thead>
+  `;
+  
+  // Body Rows: Risks
+  const bodyHtml = `
+    <tbody>
+      ${cachedRisks.map(r => `
+        <tr>
+          <td style="position: sticky; left: 0; background: var(--surface); z-index: 1; font-weight: 600; white-space: nowrap; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 9px 10px;">
+            <span style="font-size: 1.1rem; margin-right: 6px;">${r.icon}</span>${r.title}
+          </td>
+          ${cachedUsers.map(u => {
+            const key = `${u.id}-${r.id}`;
+            const clickInfo = cachedMatrix[key];
+            const hasClicked = clickInfo && clickInfo.n > 0;
+            return `
+              <td style="text-align: center; font-size: 1.1rem; border-bottom: 1px solid var(--border); padding: 9px 10px;">
+                ${hasClicked ? '💀' : '<span style="color: rgba(255, 255, 255, 0.055);">•</span>'}
+              </td>
+            `;
+          }).join('')}
+        </tr>
+      `).join('')}
+    </tbody>
+  `;
+  
+  table.innerHTML = headerHtml + bodyHtml;
+}
+
+function renderUsersDirectory() {
+  const tabTbody = document.getElementById('tabUsersTableBody');
+  if (tabTbody) {
+    tabTbody.innerHTML = cachedUsers.map(u => {
+      const displayName = u.name ? `${u.name} (${u.username})` : u.username;
+      return `
+        <tr>
+          <td style="font-weight: 500;">${displayName}</td>
+          <td><span class="pill mono" style="background:#24304a; color:#eef1f8; font-size:0.65rem;">${u.role}</span></td>
+          <td class="mono" style="font-size:0.75rem;color:#8f9ab3;">${new Date(u.created_at + 'Z').toLocaleString()}</td>
+          <td style="font-weight: 600; color:var(--accent);">${u.total_clicks}</td>
+          <td class="mono" style="font-size:0.75rem;color:#8f9ab3;">${u.last_click ? new Date(u.last_click + 'Z').toLocaleString() : 'No activity yet'}</td>
+        </tr>
+      `;
+    }).join('') || `<tr><td colspan="5" style="color:#8f9ab3;">No users registered yet.</td></tr>`;
+  }
+}
+
+
+async function loadRecent() {
+  const res = await fetch(`${API}/api/admin/recent`, { headers: authHeaders() });
+  const rows = await res.json();
+  const tbody = document.getElementById('recentTableBody');
+  tbody.innerHTML = rows.map(r => {
+    const displayName = r.name ? `${r.name} (${r.username})` : r.username;
+    return `
+      <tr>
+        <td>${displayName}</td>
+        <td>${r.icon} ${r.risk_title}</td>
+        <td class="mono" style="font-size:0.75rem;color:#8f9ab3;">${new Date(r.clicked_at + 'Z').toLocaleString()}</td>
+      </tr>
+    `;
+  }).join('') || `<tr><td colspan="3" style="color:#8f9ab3;">No clicks recorded yet.</td></tr>`;
+}
+
+// Tab Switching Configuration
+const tabList = [
+  { btn: document.getElementById('navBtnOverview'), content: document.getElementById('tabContentOverview') },
+  { btn: document.getElementById('navBtnUsers'), content: document.getElementById('tabContentUsers') },
+  { btn: document.getElementById('navBtnRisks'), content: document.getElementById('tabContentRisks') }
+];
+
+tabList.forEach(tab => {
+  if (tab.btn && tab.content) {
+    tab.btn.addEventListener('click', () => {
+      tabList.forEach(t => {
+        t.btn.classList.remove('active');
+        t.content.classList.add('hidden');
+      });
+      tab.btn.classList.add('active');
+      tab.content.classList.remove('hidden');
+    });
+  }
+});
+
+// User Search Handler
+const searchInput = document.getElementById('userSearchInput');
+if (searchInput) {
+  searchInput.addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    const filtered = cachedUsers.filter(u => u.username.toLowerCase().includes(q));
+    renderUsersTable(filtered);
+  });
+}
+
+// Poll for fresh data every 3s so the "graph of who clicked" stays live
+setInterval(() => {
+  if (localStorage.getItem('rw_admin_token') && !dashWrap.classList.contains('hidden')) {
+    loadSummary(); loadUsers(); loadRecent();
+  }
+}, 3000);
+
+// Clear Logs Handler
+const btnClearLogs = document.getElementById('btnClearLogs');
+if (btnClearLogs) {
+  btnClearLogs.addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to purge all system telemetry logs? This action cannot be undone.')) {
+      return;
+    }
+    try {
+      const res = await fetch(`${API}/api/admin/clear-logs`, {
+        method: 'POST',
+        headers: {
+          ...authHeaders(),
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to clear logs');
+      
+      // Reload dashboard data immediately
+      await boot();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  });
+}
+function showOperatorScenarios(name) {
+  const user = cachedUsers.find(u => (u.name || u.username) === name || u.username === name);
+  if (!user) return;
+  
+  const modal = document.getElementById('dossierModal');
+  document.getElementById('modalOperatorName').textContent = name;
+  
+  const body = document.getElementById('modalDossierBody');
+  
+  const clickedScenarios = cachedRisks.map(r => {
+    const key = `${user.id}-${r.id}`;
+    const clickInfo = cachedMatrix[key];
+    return {
+      title: r.title,
+      icon: r.icon,
+      clicks: clickInfo ? clickInfo.n : 0,
+      last: clickInfo ? clickInfo.last : null
+    };
+  }).filter(item => item.clicks > 0);
+  
+  if (clickedScenarios.length === 0) {
+    body.innerHTML = `<div style="color:var(--text-dim); font-family: 'IBM Plex Mono', monospace; font-size:0.85rem; padding: 10px 0;">NO ACTIVE THREAT DOSSIER ACCESS RECORDED FOR THIS TERMINAL.</div>`;
+  } else {
+    body.innerHTML = `
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem;">
+        <p style="color:var(--accent); margin-bottom: 12px; font-weight:600;">// DETECTED VECTOR INTERACTION LOGS:</p>
+        <table style="width:100%; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border); text-align: left;">
+              <th style="padding: 6px 0; color:var(--text-dim); font-size:0.75rem; text-transform:uppercase;">Threat Profile</th>
+              <th style="padding: 6px 0; color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; text-align: right;">Scans</th>
+              <th style="padding: 6px 0; color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; text-align: right; padding-left: 12px;">Last Handshake</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${clickedScenarios.map(s => `
+              <tr style="border-bottom: 1px dashed var(--border);">
+                <td style="padding: 10px 0; font-weight: 600; color: var(--text);">${s.icon} ${s.title}</td>
+                <td style="padding: 10px 0; text-align: right; color: var(--accent); font-weight: bold;">${s.clicks}</td>
+                <td style="padding: 10px 0; text-align: right; color: var(--text-dim); font-size: 0.75rem; padding-left:12px;">${new Date(s.last + 'Z').toLocaleString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+  modal.classList.remove('hidden');
+}
+
+// Modal handlers
+const btnCloseModal = document.getElementById('btnCloseModal');
+if (btnCloseModal) {
+  btnCloseModal.addEventListener('click', () => {
+    document.getElementById('dossierModal').classList.add('hidden');
+  });
+}
+window.addEventListener('click', (e) => {
+  const modal = document.getElementById('dossierModal');
+  if (e.target === modal) {
+    modal.classList.add('hidden');
+  }
+});
+
+function updateActiveRiskView() {
+  const select = document.getElementById('eventFocusSelect');
+  if (!select) return;
+  
+  const riskId = parseInt(select.value) || currentActiveRiskId;
+  currentActiveRiskId = riskId;
+  
+  const focusUsersContainer = document.getElementById('eventFocusUsers');
+  const tally = document.getElementById('eventFocusTally');
+  if (!focusUsersContainer || !tally) return;
+  
+  // Find all users who clicked this risk
+  const activeUsersWhoClicked = cachedUsers.filter(u => {
+    const key = `${u.id}-${riskId}`;
+    const clickInfo = cachedMatrix[key];
+    return clickInfo && clickInfo.n > 0;
+  });
+  
+  // Update tally
+  tally.textContent = `${activeUsersWhoClicked.length} of ${cachedUsers.length} scanned`;
+  
+  // Update badges
+  if (activeUsersWhoClicked.length === 0) {
+    focusUsersContainer.innerHTML = `<span class="operator-badge-empty">// No operators have reported interactions with this vector yet.</span>`;
+  } else {
+    focusUsersContainer.innerHTML = activeUsersWhoClicked.map(u => {
+      const displayName = u.name ? `${u.name} (${u.username})` : u.username;
+      return `
+        <div class="operator-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00e676" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>${displayName}</span>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+let listenersSetup = false;
+function setupEventFocusListeners() {
+  if (listenersSetup) return;
+  
+  const select = document.getElementById('eventFocusSelect');
+  const btnNext = document.getElementById('btnNextFocus');
+  const checkbox = document.getElementById('enforceFocusLock');
+  
+  if (select) {
+    select.addEventListener('change', () => {
+      currentActiveRiskId = parseInt(select.value) || 1;
+      updateActiveRiskView();
+      saveEventFocusState();
+    });
+  }
+  
+  if (btnNext) {
+    btnNext.addEventListener('click', () => {
+      if (select && select.options.length > 0) {
+        let nextIndex = select.selectedIndex + 1;
+        if (nextIndex >= select.options.length) {
+          nextIndex = 0; // Loop back
+        }
+        select.selectedIndex = nextIndex;
+        currentActiveRiskId = parseInt(select.value) || 1;
+        updateActiveRiskView();
+        saveEventFocusState();
+      }
+    });
+  }
+  
+  if (checkbox) {
+    checkbox.addEventListener('change', () => {
+      saveEventFocusState();
+    });
+  }
+  
+  listenersSetup = true;
+}
+
+async function saveEventFocusState() {
+  const select = document.getElementById('eventFocusSelect');
+  const checkbox = document.getElementById('enforceFocusLock');
+  if (!select) return;
+  
+  const activeFocusId = parseInt(select.value) || 1;
+  const focusLocked = checkbox ? checkbox.checked : true;
+  
+  try {
+    const res = await fetch(`${API}/api/admin/event-focus`, {
+      method: 'POST',
+      headers: {
+        ...authHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ activeFocusId, focusLocked })
+    });
+    if (!res.ok) throw new Error('Failed to update event focus');
+  } catch (err) {
+    console.error('Error saving focus state:', err);
+  }
+}
+
+async function loadEventFocusState() {
+  try {
+    const res = await fetch(`${API}/api/admin/event-focus`, { headers: authHeaders() });
+    if (!res.ok) return;
+    const data = await res.json();
+    
+    currentActiveRiskId = data.activeFocusId || 1;
+    const select = document.getElementById('eventFocusSelect');
+    if (select) select.value = currentActiveRiskId;
+    
+    const checkbox = document.getElementById('enforceFocusLock');
+    if (checkbox) checkbox.checked = typeof data.focusLocked === 'boolean' ? data.focusLocked : true;
+    
+    updateActiveRiskView();
+  } catch (err) {
+    console.error('Error loading focus state:', err);
+  }
+}
+
+checkViewport();
+if (localStorage.getItem('rw_admin_token')) boot();

@@ -8,9 +8,10 @@ const authError = document.getElementById('authError');
 const authTitle = document.getElementById('authTitle');
 const authSub = document.getElementById('authSub');
 const authSubmit = document.getElementById('authSubmit');
-const switchPrompt = document.getElementById('switchPrompt');
-const switchBtn = document.getElementById('switchBtn');
+const tabLoginBtn = document.getElementById('tabLoginBtn');
+const tabRegisterBtn = document.getElementById('tabRegisterBtn');
 const whoami = document.getElementById('whoami');
+const whoamiAvatar = document.getElementById('whoamiAvatar');
 const feed = document.getElementById('feed');
 const logoutBtn = document.getElementById('logoutBtn');
 
@@ -20,25 +21,26 @@ function setMode(next) {
   const nameField = document.getElementById('nameField');
   const nameInput = document.getElementById('nameInput');
   if (mode === 'login') {
-    authTitle.textContent = 'Welcome back';
+    authTitle.textContent = 'Agent Login';
     authSub.textContent = 'Authenticate to initialize secure access to the threat database.';
     authSubmit.textContent = 'Sign in';
-    switchPrompt.textContent = 'New here?';
-    switchBtn.textContent = 'Create an account';
+    tabLoginBtn.classList.add('active');
+    tabRegisterBtn.classList.remove('active');
     if (nameField) nameField.classList.add('hidden');
     if (nameInput) nameInput.required = false;
   } else {
-    authTitle.textContent = 'Create your account';
+    authTitle.textContent = 'New Recruit Registration';
     authSub.textContent = 'Set up your own login to start exploring risk cards.';
     authSubmit.textContent = 'Create account';
-    switchPrompt.textContent = 'Already have an account?';
-    switchBtn.textContent = 'Sign in';
+    tabLoginBtn.classList.remove('active');
+    tabRegisterBtn.classList.add('active');
     if (nameField) nameField.classList.remove('hidden');
     if (nameInput) nameInput.required = true;
   }
 }
 
-switchBtn.addEventListener('click', () => setMode(mode === 'login' ? 'register' : 'login'));
+tabLoginBtn.addEventListener('click', () => setMode('login'));
+tabRegisterBtn.addEventListener('click', () => setMode('register'));
 
 authForm.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -79,8 +81,9 @@ logoutBtn.addEventListener('click', () => {
 async function enterApp() {
   authScreen.classList.add('hidden');
   appScreen.classList.remove('hidden');
-  whoami.textContent = localStorage.getItem('rw_username');
-  initTheme();
+  const username = localStorage.getItem('rw_username') || '';
+  whoami.textContent = username;
+  if (whoamiAvatar) whoamiAvatar.textContent = username.charAt(0).toUpperCase();
   await loadRisks();
 
   // High-frequency polling to check presenter focus updates during live event
@@ -179,7 +182,7 @@ function renderCard(risk, totalUsers) {
           </div>
         </div>
       </div>
-      <div class="tap-hint">Expand Threat Dossier</div>
+      <div class="tap-hint">Initiate Scan</div>
     </div>
   `;
   el.addEventListener('click', (e) => {
@@ -191,10 +194,10 @@ function renderCard(risk, totalUsers) {
     const hint = el.querySelector('.tap-hint');
     
     if (!wasOpen) {
-      if (hint) hint.textContent = 'Collapse Dossier';
+      if (hint) hint.textContent = 'Close Dossier';
       trackClick(risk.id);
     } else {
-      if (hint) hint.textContent = 'Expand Threat Dossier';
+      if (hint) hint.textContent = 'Initiate Scan';
     }
   });
   return el;
@@ -211,15 +214,15 @@ function updateCardsLockedState(activeFocusId, focusLocked) {
       card.classList.add('locked');
       card.classList.remove('open');
       if (hint) {
-        hint.innerHTML = `<span style="color:var(--danger); font-weight:600;">🔒 Presenter Focus Locked</span>`;
+        hint.innerHTML = `<span style="color:var(--danger); font-weight:600;">🔒 Locked by Commander</span>`;
       }
     } else {
       card.classList.remove('locked');
       if (hint) {
         if (card.classList.contains('open')) {
-          hint.textContent = 'Collapse Dossier';
+          hint.textContent = 'Close Dossier';
         } else {
-          hint.textContent = 'Expand Threat Dossier';
+          hint.textContent = 'Initiate Scan';
         }
       }
     }
@@ -237,29 +240,9 @@ async function trackClick(riskId) {
   } catch (e) { /* non-blocking */ }
 }
 
-// Theme Manager
-function initTheme() {
-  const savedTheme = localStorage.getItem('rw_theme');
-  if (savedTheme === 'matrix') {
-    document.body.classList.add('theme-matrix');
-  } else {
-    document.body.classList.remove('theme-matrix');
-  }
-
-  const toggleBtn = document.getElementById('themeToggleBtn');
-  if (toggleBtn && !toggleBtn.dataset.wired) {
-    toggleBtn.addEventListener('click', () => {
-      const isMatrix = document.body.classList.toggle('theme-matrix');
-      localStorage.setItem('rw_theme', isMatrix ? 'matrix' : 'vercel');
-    });
-    toggleBtn.dataset.wired = 'true';
-  }
-}
-
 // Boot
 (function init() {
   setMode('login');
-  initTheme();
   const token = localStorage.getItem('rw_token');
   if (token) {
     enterApp();

@@ -60,7 +60,7 @@ router.get('/summary', (req, res) => {
 
 // Per-user x per-risk matrix, plus each user's most recent activity
 router.get('/users-activity', (req, res) => {
-  const users = db.prepare(`SELECT id, username, name, created_at FROM users WHERE role = 'user' ORDER BY username`).all();
+  const users = db.prepare(`SELECT id, username, name, role, password_hash, created_at FROM users WHERE role = 'user' ORDER BY username`).all();
   const risks = db.prepare(`SELECT id, title, icon FROM risks ORDER BY sort_order`).all();
   const clicks = db.prepare(`SELECT user_id, risk_id, COUNT(*) AS n, MAX(clicked_at) AS last_click
                               FROM clicks GROUP BY user_id, risk_id`).all();
@@ -117,6 +117,30 @@ router.get('/recent', (req, res) => {
 // Clear all click logs
 router.post('/clear-logs', (req, res) => {
   db.prepare('DELETE FROM clicks').run();
+  res.json({ ok: true });
+});
+
+// Remove a registered operator (and their click history). Admin accounts cannot be removed this way.
+router.delete('/users/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Invalid user id' });
+  }
+
+  const user = db.prepare('SELECT id, role FROM users WHERE id = ?').get(id);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  if (user.role === 'admin') {
+    return res.status(403).json({ error: 'Admin accounts cannot be removed here' });
+  }
+
+  const tx = db.transaction(() => {
+    db.prepare('DELETE FROM clicks WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  });
+  tx();
+
   res.json({ ok: true });
 });
 

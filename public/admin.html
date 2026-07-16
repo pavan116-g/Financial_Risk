@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>RiskWatch // Security Operations Center (SOC)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/admin.css">
 <script src="/js/chart.umd.min.js"></script>
 </head>
@@ -21,7 +21,8 @@
 <!-- LOGIN -->
 <div id="loginWrap" class="login-wrap">
   <div class="login-card">
-    <svg class="dial" viewBox="0 0 60 60"><use href="#riskDial"/></svg>
+    <div class="classified-banner" style="margin: -36px -36px 24px;">Classified // Eyes Only</div>
+    <span class="dial-ring"><svg class="dial" viewBox="0 0 60 60"><use href="#riskDial"/></svg></span>
     <h1>SOC Console Access</h1>
     <p class="sub">Threat intelligence metrics and terminal interaction telemetry.</p>
     <div id="loginError" class="error-msg hidden"></div>
@@ -36,19 +37,21 @@
       </div>
       <button class="btn-primary" type="submit">Sign in</button>
     </form>
+    <div class="self-destruct-note">This console will <b>self-destruct</b> on logout. No message will self-destruct in five seconds.</div>
   </div>
 </div>
 
 <!-- DASHBOARD -->
 <div id="dashWrap" class="dash hidden">
   <div class="sidebar">
-    <div class="brand"><svg class="dial" viewBox="0 0 60 60"><use href="#riskDial"/></svg>RiskWatch // SOC</div>
+    <div class="brand"><span class="dial-ring"><svg class="dial" viewBox="0 0 60 60"><use href="#riskDial"/></svg></span>RiskWatch // SOC</div>
+    <span class="role-badge">Commander</span>
+    <div class="ops-timer-box">T-Minus <span class="ops-timer" data-ops-timer>05:00</span></div>
     <div class="nav-item active" id="navBtnOverview">Security Console</div>
     <div class="nav-item" id="navBtnUsers">Access Logs</div>
     <div class="nav-item" id="navBtnRisks">Threat Database</div>
     <div class="sidebar-foot" style="display:flex; flex-direction:column; gap:4px;">
       <div>Signed in as <span id="adminWhoami" class="mono"></span></div>
-      <button class="theme-toggle-btn" id="adminThemeToggle">Toggle Theme</button>
       <button id="adminLogout">Sign out</button>
     </div>
   </div>
@@ -67,17 +70,29 @@
         </button>
       </div>
 
-      <div class="kpi-row" style="grid-template-columns: 1fr;">
-        <div class="kpi" style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px;">
-          <div class="label" style="font-size:0.85rem; letter-spacing:0.06em; margin-bottom:0;">ACTIVE PRESENTATION SESSIONS</div>
-          <div class="value" id="kpiActive" style="font-size:1.8rem; line-height:1; color:var(--accent);">—</div>
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="label">Active Sessions</div>
+          <div class="value" id="kpiActive">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Registered Agents</div>
+          <div class="value" id="kpiAgents">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Scans Logged</div>
+          <div class="value" id="kpiScans">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Threat Vectors</div>
+          <div class="value" id="kpiVectors">—</div>
         </div>
       </div>
 
       <!-- LIVE EVENT PRESENTER CONTROLLER -->
       <div class="panel-row" style="grid-template-columns: 1fr 1.5fr; margin-bottom: 20px;">
         <!-- Focus Controller -->
-        <div class="panel" style="display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
+        <div class="panel classified" style="display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
           <div>
             <h3>Live Event Focus</h3>
             <p class="sub" style="margin-bottom: 8px;">Select active scenario focus to discuss with the audience.</p>
@@ -86,7 +101,7 @@
             <select id="eventFocusSelect" style="flex:1; background:var(--surface-2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family:'Space Grotesk', sans-serif; font-size:0.9rem; cursor:pointer;">
               <!-- Populated dynamically -->
             </select>
-            <button id="btnNextFocus" class="btn-danger-outline" style="color:var(--accent); border-color:rgba(0, 240, 255, 0.4); display:flex; align-items:center; justify-content:center; padding:10px 14px; gap:6px;">
+            <button id="btnNextFocus" class="btn-danger-outline" style="color:var(--accent); border-color:rgba(255, 0, 51, 0.4); display:flex; align-items:center; justify-content:center; padding:10px 14px; gap:6px;">
               Next Focus
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
             </button>
@@ -157,10 +172,12 @@
             <thead>
               <tr>
                 <th>Operator</th>
+                <th>Encrypted Key</th>
                 <th>Authorization</th>
                 <th>Handshake Established</th>
                 <th>Database Scans</th>
                 <th>Last Handshake</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody id="tabUsersTableBody"></tbody>
@@ -200,22 +217,26 @@
 <div id="dossierModal" class="modal hidden">
   <div class="modal-content">
     <div class="modal-header">
-      <h2>[TERMINAL_DOSSIER] // <span id="modalOperatorName"></span></h2>
+      <h2>Agent Dossier // <span id="modalOperatorName"></span></h2>
       <button class="modal-close" id="btnCloseModal">&times;</button>
     </div>
-    <div class="modal-body" id="modalDossierBody"></div>
+    <div class="modal-body">
+      <div class="dossier-avatar" id="modalAvatar"></div>
+      <div id="modalDossierBody"></div>
+    </div>
   </div>
 </div>
 
 <svg width="0" height="0" style="position:absolute">
   <symbol id="riskDial" viewBox="0 0 60 60">
-    <circle cx="30" cy="30" r="26" fill="none" stroke="#24304a" stroke-width="5"/>
-    <circle cx="30" cy="30" r="26" fill="none" stroke="#f2a93b" stroke-width="5"
+    <circle cx="30" cy="30" r="26" fill="none" stroke="#240808" stroke-width="5"/>
+    <circle cx="30" cy="30" r="26" fill="none" stroke="#ffb300" stroke-width="5"
       stroke-linecap="round" stroke-dasharray="115 163" transform="rotate(-90 30 30)"/>
-    <circle cx="30" cy="30" r="4" fill="#e5484d"/>
+    <circle cx="30" cy="30" r="4" fill="#ff0033"/>
   </symbol>
 </svg>
 
+<script src="/js/ops-clock.js"></script>
 <script src="/js/admin.js"></script>
 </body>
 </html>

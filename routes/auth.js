@@ -32,6 +32,8 @@ router.post('/register', (req, res) => {
   const info = db.prepare(`INSERT INTO users (username, name, password_hash, role) VALUES (?, ?, ?, 'user')`)
     .run(username, name ? name.trim() : null, hash);
 
+  console.log(`[ACCESS LOG] account created — username: ${username}, name: ${name ? name.trim() : 'N/A'}, at: ${new Date().toISOString()}`);
+
   const token = jwt.sign({ id: info.lastInsertRowid, username, role: 'user' }, SECRET, { expiresIn: '12h' });
   res.status(201).json({ token, username, role: 'user' });
 });
@@ -42,7 +44,23 @@ router.post('/login', (req, res) => {
     return res.status(400).json({ error: 'Username and password are required' });
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  const envAdminUsername = (process.env.ADMIN_DEFAULT_USERNAME || 'admin').trim();
+  const envAdminPassword = (process.env.ADMIN_DEFAULT_PASSWORD || 'ChangeMe123!').toString();
+
+  let user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+
+  if (username === envAdminUsername && password === envAdminPassword) {
+    if (!user) {
+      const hash = bcrypt.hashSync(envAdminPassword, 10);
+      const info = db.prepare(`INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'admin')`).run(envAdminUsername, hash);
+      user = { id: info.lastInsertRowid, username: envAdminUsername, role: 'admin', password_hash: hash };
+    } else if (user.role !== 'admin' || !bcrypt.compareSync(envAdminPassword, user.password_hash)) {
+      const hash = bcrypt.hashSync(envAdminPassword, 10);
+      db.prepare(`UPDATE users SET password_hash = ?, role = 'admin' WHERE id = ?`).run(hash, user.id);
+      user = { ...user, password_hash: hash, role: 'admin' };
+    }
+  }
+
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: 'Invalid username or password' });
   }

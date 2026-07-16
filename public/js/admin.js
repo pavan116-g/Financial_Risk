@@ -56,7 +56,6 @@ let currentActiveRiskId = 1;
 
 async function boot() {
   document.getElementById('adminWhoami').textContent = localStorage.getItem('rw_admin_username');
-  initAdminTheme();
   await Promise.all([loadSummary(), loadUsers(), loadRecent(), loadEventFocusState()]);
   setupEventFocusListeners();
 }
@@ -76,6 +75,8 @@ async function loadSummary() {
   }
 
   document.getElementById('kpiActive').textContent = totals.active_users;
+  document.getElementById('kpiScans').textContent = totals.total_clicks;
+  document.getElementById('kpiVectors').textContent = perRisk.length;
 
   // Populate Risk Cards Directory Tab Table
   const risksTabTbody = document.getElementById('tabRisksTableBody');
@@ -84,26 +85,26 @@ async function loadSummary() {
       <tr>
         <td><span style="font-size:1.2rem; margin-right:8px;">${r.icon}</span> <strong>${r.title}</strong></td>
         <td><span class="pill ${r.severity}">${r.severity}</span></td>
-        <td style="color:#8f9ab3; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.short_desc}">${r.short_desc}</td>
+        <td style="color:var(--text-dim); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.short_desc}">${r.short_desc}</td>
         <td style="font-weight: 600; color:var(--accent);">${r.clicks}</td>
         <td>${r.unique_readers}</td>
         <td class="mono">${r.sort_order}</td>
       </tr>
-    `).join('') || `<tr><td colspan="6" style="color:#8f9ab3;">No risk cards available.</td></tr>`;
+    `).join('') || `<tr><td colspan="6" style="color:var(--text-dim);">No risk cards available.</td></tr>`;
   }
 
   const ctx = document.getElementById('riskChart');
   const chartLabels = perUser.map(u => u.name);
   const chartData = perUser.map(u => u.clicks);
   
-  // Modern SaaS color palette
-  const segmentColors = ['#6366f1', '#4f46e5', '#3b82f6', '#8b5cf6', '#ec4899', '#a855f7', '#06b6d4', '#1d4ed8', '#10b981', '#f43f5e'];
+  // Mission Impossible red/amber ops palette
+  const segmentColors = ['#ff0033', '#ffb300', '#ff3355', '#cc0029', '#ff8800', '#e6002e', '#ffcc00', '#99001f', '#ff5500', '#b30000'];
   const data = {
     labels: chartLabels,
     datasets: [{
       data: chartData,
       backgroundColor: chartLabels.map((_, i) => segmentColors[i % segmentColors.length]),
-      borderColor: '#161626',
+      borderColor: '#140303',
       borderWidth: 2,
     }],
   };
@@ -121,8 +122,8 @@ async function loadSummary() {
       },
       scales: {
         r: {
-          grid: { color: document.body.classList.contains('theme-matrix') ? 'rgba(0, 255, 102, 0.15)' : 'rgba(139, 92, 246, 0.15)' },
-          angleLines: { color: document.body.classList.contains('theme-matrix') ? 'rgba(0, 255, 102, 0.15)' : 'rgba(139, 92, 246, 0.15)' },
+          grid: { color: 'rgba(255, 0, 51, 0.15)' },
+          angleLines: { color: 'rgba(255, 0, 51, 0.15)' },
           ticks: { display: false }
         }
       },
@@ -130,7 +131,7 @@ async function loadSummary() {
         legend: {
           display: true,
           position: 'right',
-          labels: { color: '#eef1f8', font: { family: 'Space Grotesk', size: 11 } }
+          labels: { color: '#f5f5f5', font: { family: 'IBM Plex Mono', size: 11 } }
         }
       },
       responsive: true,
@@ -145,6 +146,8 @@ async function loadUsers() {
   cachedUsers = data.users || [];
   cachedRisks = data.risks || [];
   cachedMatrix = data.matrix || {};
+  const kpiAgents = document.getElementById('kpiAgents');
+  if (kpiAgents) kpiAgents.textContent = cachedUsers.length;
   renderMatrixTable();
   renderUsersDirectory();
   updateActiveRiskView();
@@ -155,7 +158,7 @@ function renderMatrixTable() {
   if (!table) return;
   
   if (cachedRisks.length === 0 || cachedUsers.length === 0) {
-    table.innerHTML = `<tr><td style="color:#8f9ab3; padding: 10px;">Waiting for system operators to connect...</td></tr>`;
+    table.innerHTML = `<tr><td style="color:var(--text-dim); padding: 10px;">Waiting for system operators to connect...</td></tr>`;
     return;
   }
   
@@ -198,23 +201,50 @@ function renderMatrixTable() {
   table.innerHTML = headerHtml + bodyHtml;
 }
 
-function renderUsersDirectory() {
+function renderUsersDirectory(list) {
+  const users = list || cachedUsers;
   const tabTbody = document.getElementById('tabUsersTableBody');
   if (tabTbody) {
-    tabTbody.innerHTML = cachedUsers.map(u => {
+    tabTbody.innerHTML = users.map(u => {
       const displayName = u.name ? `${u.name} (${u.username})` : u.username;
       return `
         <tr>
           <td style="font-weight: 500;">${displayName}</td>
-          <td><span class="pill mono" style="background:#24304a; color:#eef1f8; font-size:0.65rem;">${u.role}</span></td>
-          <td class="mono" style="font-size:0.75rem;color:#8f9ab3;">${new Date(u.created_at + 'Z').toLocaleString()}</td>
+          <td class="mono" style="font-size:0.7rem; color:var(--text-dim); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${u.password_hash}">${u.password_hash}</td>
+          <td><span class="pill mono" style="background:rgba(255,0,51,0.1); border:1px solid rgba(255,0,51,0.3); color:#f5f5f5; font-size:0.65rem;">${u.role}</span></td>
+          <td class="mono" style="font-size:0.75rem;color:var(--text-dim);">${new Date(u.created_at + 'Z').toLocaleString()}</td>
           <td style="font-weight: 600; color:var(--accent);">${u.total_clicks}</td>
-          <td class="mono" style="font-size:0.75rem;color:#8f9ab3;">${u.last_click ? new Date(u.last_click + 'Z').toLocaleString() : 'No activity yet'}</td>
+          <td class="mono" style="font-size:0.75rem;color:var(--text-dim);">${u.last_click ? new Date(u.last_click + 'Z').toLocaleString() : 'No activity yet'}</td>
+          <td><button class="btn-danger-outline" data-remove-user="${u.id}" data-remove-name="${displayName}" style="padding:5px 10px; font-size:0.68rem;">Remove</button></td>
         </tr>
       `;
-    }).join('') || `<tr><td colspan="5" style="color:#8f9ab3;">No users registered yet.</td></tr>`;
+    }).join('') || `<tr><td colspan="7" style="color:var(--text-dim);">No users registered yet.</td></tr>`;
   }
 }
+
+// Event delegation so remove buttons keep working across re-renders
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-remove-user]');
+  if (!btn) return;
+  const id = btn.getAttribute('data-remove-user');
+  const name = btn.getAttribute('data-remove-name');
+  if (!confirm(`Remove operator "${name}"? This deletes their account and all scan history. This cannot be undone.`)) {
+    return;
+  }
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/admin/users/${id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to remove user');
+    await loadUsers();
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+    btn.disabled = false;
+  }
+});
 
 
 async function loadRecent() {
@@ -227,10 +257,10 @@ async function loadRecent() {
       <tr>
         <td>${displayName}</td>
         <td>${r.icon} ${r.risk_title}</td>
-        <td class="mono" style="font-size:0.75rem;color:#8f9ab3;">${new Date(r.clicked_at + 'Z').toLocaleString()}</td>
+        <td class="mono" style="font-size:0.75rem;color:var(--text-dim);">${new Date(r.clicked_at + 'Z').toLocaleString()}</td>
       </tr>
     `;
-  }).join('') || `<tr><td colspan="3" style="color:#8f9ab3;">No clicks recorded yet.</td></tr>`;
+  }).join('') || `<tr><td colspan="3" style="color:var(--text-dim);">No clicks recorded yet.</td></tr>`;
 }
 
 // Tab Switching Configuration
@@ -259,7 +289,7 @@ if (searchInput) {
   searchInput.addEventListener('input', (e) => {
     const q = e.target.value.toLowerCase().trim();
     const filtered = cachedUsers.filter(u => u.username.toLowerCase().includes(q));
-    renderUsersTable(filtered);
+    renderUsersDirectory(filtered);
   });
 }
 
@@ -301,7 +331,9 @@ function showOperatorScenarios(name) {
   
   const modal = document.getElementById('dossierModal');
   document.getElementById('modalOperatorName').textContent = name;
-  
+  const avatar = document.getElementById('modalAvatar');
+  if (avatar) avatar.textContent = name.charAt(0).toUpperCase();
+
   const body = document.getElementById('modalDossierBody');
   
   const clickedScenarios = cachedRisks.map(r => {
@@ -476,34 +508,6 @@ async function loadEventFocusState() {
   } catch (err) {
     console.error('Error loading focus state:', err);
   }
-}
-
-function initAdminTheme() {
-  const savedTheme = localStorage.getItem('rw_theme_admin');
-  if (savedTheme === 'matrix') {
-    document.body.classList.add('theme-matrix');
-  } else {
-    document.body.classList.remove('theme-matrix');
-  }
-
-  const toggleBtn = document.getElementById('adminThemeToggle');
-  if (toggleBtn && !toggleBtn.dataset.wired) {
-    toggleBtn.addEventListener('click', () => {
-      const isMatrix = document.body.classList.toggle('theme-matrix');
-      localStorage.setItem('rw_theme_admin', isMatrix ? 'matrix' : 'vercel');
-      updateChartColors();
-    });
-    toggleBtn.dataset.wired = 'true';
-  }
-}
-
-function updateChartColors() {
-  if (!riskChart) return;
-  const isMatrix = document.body.classList.contains('theme-matrix');
-  const lineColor = isMatrix ? 'rgba(0, 255, 102, 0.15)' : 'rgba(139, 92, 246, 0.15)';
-  riskChart.options.scales.r.grid.color = lineColor;
-  riskChart.options.scales.r.angleLines.color = lineColor;
-  riskChart.update();
 }
 
 checkViewport();

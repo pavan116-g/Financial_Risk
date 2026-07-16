@@ -5,19 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>RiskWatch // Threat Intelligence Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 <div class="device">
   <div class="statusbar"></div>
+  <div class="classified-banner">Classified // Eyes Only</div>
 
   <!-- AUTH SCREEN -->
   <div id="authScreen" class="auth-screen">
     <div class="auth-hero">
-      <svg class="dial-mini" viewBox="0 0 60 60"><use href="#riskDial"/></svg>
+      <span class="dial-ring"><svg class="dial-mini" viewBox="0 0 60 60"><use href="#riskDial"/></svg></span>
       <h1 id="authTitle">Welcome to RiskWatch</h1>
       <p id="authSub">Authenticate to initialize secure access to the threat database.</p>
+    </div>
+
+    <div class="mission-briefing">
+      <strong>MISSION BRIEFING:</strong> This terminal grants access to live financial threat intelligence. Your credentials identify you as a registered field agent for this session only.
+    </div>
+
+    <div class="ops-tabs">
+      <button type="button" class="ops-tab active" id="tabLoginBtn">Agent Login</button>
+      <button type="button" class="ops-tab" id="tabRegisterBtn">New Recruit</button>
     </div>
 
     <div id="authError" class="error-msg hidden"></div>
@@ -38,25 +48,25 @@
       <button type="submit" class="btn-primary" id="authSubmit">Sign in</button>
     </form>
 
-    <div class="auth-switch">
-      <span id="switchPrompt">New here?</span>
-      <button type="button" id="switchBtn">Create an account</button>
-    </div>
+    <div class="self-destruct-note">This session will <b>self-destruct</b> on logout. No message will self-destruct in five seconds.</div>
   </div>
 
   <!-- CARDS SCREEN -->
   <div id="appScreen" class="hidden" style="display:flex; flex-direction:column; flex:1;">
     <div class="app-header">
       <div class="brand">
-        <svg class="dial-mini" viewBox="0 0 60 60"><use href="#riskDial"/></svg>
+        <span class="dial-ring"><svg class="dial-mini" viewBox="0 0 60 60"><use href="#riskDial"/></svg></span>
         RiskWatch
       </div>
-      <div style="display:flex; align-items:center;">
-        <button class="theme-toggle-btn" id="themeToggleBtn">Theme</button>
+      <div class="header-actions">
         <button class="logout-btn" id="logoutBtn">End Session</button>
       </div>
     </div>
-    <div class="hello">Operator Session: <span id="whoami"></span></div>
+    <div class="ops-status-bar">
+      <span class="role-badge">Field Agent</span>
+      <span class="ops-timer-box"><span class="ops-timer-label">T-Minus</span><span class="ops-timer" data-ops-timer>05:00</span></span>
+    </div>
+    <div class="hello"><span class="avatar-chip" id="whoamiAvatar"></span>Operator Session: <span id="whoami" class="session-name"></span></div>
 
     <div id="feed" class="feed"></div>
 
@@ -67,13 +77,14 @@
 <!-- Reusable signature "risk dial" icon -->
 <svg width="0" height="0" style="position:absolute">
   <symbol id="riskDial" viewBox="0 0 60 60">
-    <circle cx="30" cy="30" r="26" fill="none" stroke="#2a3552" stroke-width="5"/>
-    <circle cx="30" cy="30" r="26" fill="none" stroke="#f2a93b" stroke-width="5"
+    <circle cx="30" cy="30" r="26" fill="none" stroke="#240808" stroke-width="5"/>
+    <circle cx="30" cy="30" r="26" fill="none" stroke="#ffb300" stroke-width="5"
       stroke-linecap="round" stroke-dasharray="115 163" transform="rotate(-90 30 30)"/>
-    <circle cx="30" cy="30" r="4" fill="#e5484d"/>
+    <circle cx="30" cy="30" r="4" fill="#ff0033"/>
   </symbol>
 </svg>
 
+<script src="/js/ops-clock.js"></script>
 <script src="/js/app.js"></script>
 </body>
 </html>

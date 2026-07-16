@@ -1,6 +1,7 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
-const path = require('path');
 
 const db = new Database(path.join(__dirname, 'db', 'finrisk.sqlite'));
 db.pragma('journal_mode = WAL');

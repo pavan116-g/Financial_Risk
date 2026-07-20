@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth');
 const riskRoutes = require('./routes/risks');
 const clickRoutes = require('./routes/clicks');
 const adminRoutes = require('./routes/admin');
+const quizRoutes = require('./routes/quiz');
 
 const app = express();
 app.use(cors());
@@ -16,8 +17,16 @@ app.use('/api/auth', authRoutes);
 app.use('/api/risks', riskRoutes);
 app.use('/api/clicks', clickRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/quiz', quizRoutes);
 
-app.use(express.static(path.join(__dirname, 'public')));
+// no-cache on JS/CSS so browsers always pick up the latest build during active iteration
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));

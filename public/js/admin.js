@@ -56,8 +56,9 @@ let currentActiveRiskId = 1;
 
 async function boot() {
   document.getElementById('adminWhoami').textContent = localStorage.getItem('rw_admin_username');
-  await Promise.all([loadSummary(), loadUsers(), loadRecent(), loadEventFocusState()]);
+  await Promise.all([loadSummary(), loadUsers(), loadRecent(), loadEventFocusState(), loadQuizState()]);
   setupEventFocusListeners();
+  setupQuizControlListeners();
 }
 
 async function loadSummary() {
@@ -266,7 +267,8 @@ async function loadRecent() {
 const tabList = [
   { btn: document.getElementById('navBtnOverview'), content: document.getElementById('tabContentOverview') },
   { btn: document.getElementById('navBtnUsers'), content: document.getElementById('tabContentUsers') },
-  { btn: document.getElementById('navBtnRisks'), content: document.getElementById('tabContentRisks') }
+  { btn: document.getElementById('navBtnRisks'), content: document.getElementById('tabContentRisks') },
+  { btn: document.getElementById('navBtnQuiz'), content: document.getElementById('tabContentQuiz') }
 ];
 
 tabList.forEach(tab => {
@@ -278,6 +280,7 @@ tabList.forEach(tab => {
       });
       tab.btn.classList.add('active');
       tab.content.classList.remove('hidden');
+      if (tab.btn.id === 'navBtnQuiz') loadQuizResults();
     });
   }
 });
@@ -298,6 +301,13 @@ setInterval(() => {
     loadSummary(); loadUsers(); loadRecent();
   }
 }, 3000);
+
+// Faster poll for the live quiz vote tally while a question is in progress
+setInterval(() => {
+  if (localStorage.getItem('rw_admin_token') && !dashWrap.classList.contains('hidden')) {
+    loadQuizLive();
+  }
+}, 2000);
 
 // Clear Logs Handler
 const btnClearLogs = document.getElementById('btnClearLogs');
@@ -506,6 +516,210 @@ async function loadEventFocusState() {
     updateActiveRiskView();
   } catch (err) {
     console.error('Error loading focus state:', err);
+  }
+}
+
+// ---------- Live Quiz Control ----------
+let cachedQuizzes = [];
+let quizControlListenersSetup = false;
+let quizControlTimer = { active: false, questionStartedAt: null, timeLimitMs: null };
+let quizControlRenderKey = null;
+
+// Smooth per-frame countdown for the presenter console, decoupled from the 2s poll
+setInterval(() => {
+  const fill = document.getElementById('quizControlTimerFill');
+  const text = document.getElementById('quizControlTimerText');
+  if (!quizControlTimer.active || !fill || !text) return;
+  const remainingMs = Math.max(0, quizControlTimer.questionStartedAt + quizControlTimer.timeLimitMs - Date.now());
+  const pct = Math.max(0, Math.min(100, (remainingMs / quizControlTimer.timeLimitMs) * 100));
+  fill.style.width = `${pct}%`;
+  text.textContent = `${Math.ceil(remainingMs / 1000)}s`;
+  fill.classList.toggle('low', remainingMs <= 5000);
+}, 200);
+
+async function loadQuizState() {
+  const res = await fetch(`${API}/api/admin/quiz-state`, { headers: authHeaders() });
+  if (!res.ok) return;
+  const data = await res.json();
+  cachedQuizzes = data.quizzes || [];
+
+  const quizSelect = document.getElementById('quizSelect');
+  if (quizSelect && quizSelect.children.length === 0) {
+    quizSelect.innerHTML = cachedQuizzes.map(q => `<option value="${q.id}">${q.title}</option>`).join('');
+  }
+  const quizResultsSelect = document.getElementById('quizResultsSelect');
+  if (quizResultsSelect && quizResultsSelect.children.length === 0) {
+    quizResultsSelect.innerHTML = cachedQuizzes.map(q => `<option value="${q.id}">${q.title}</option>`).join('');
+    quizResultsSelect.addEventListener('change', loadQuizResults);
+  }
+
+  const pill = document.getElementById('quizStatusPill');
+  const launcher = document.getElementById('quizLauncher');
+  const controlPanel = document.getElementById('quizControlPanel');
+
+  if (!data.activeQuizId) {
+    if (pill) pill.textContent = 'No quiz active';
+    if (launcher) launcher.classList.remove('hidden');
+    if (controlPanel) controlPanel.classList.add('hidden');
+    return;
+  }
+
+  const quizTitle = (cachedQuizzes.find(q => q.id === data.activeQuizId) || {}).title || data.activeQuizId;
+  if (pill) pill.textContent = data.phase === 'complete'
+    ? `${quizTitle} · Complete`
+    : `${quizTitle} · Q${data.activeQuestionN} · ${data.phase === 'revealed' ? 'Revealed' : 'Voting'}`;
+  if (launcher) launcher.classList.add('hidden');
+  if (controlPanel) controlPanel.classList.remove('hidden');
+
+  await loadQuizLive();
+}
+
+async function loadQuizLive() {
+  const controlPanel = document.getElementById('quizControlPanel');
+  if (!controlPanel || controlPanel.classList.contains('hidden')) return;
+
+  const res = await fetch(`${API}/api/admin/quiz-live`, { headers: authHeaders() });
+  if (!res.ok) return;
+  const data = await res.json();
+  if (!data.activeQuizId) return;
+
+  const qText = document.getElementById('quizControlQuestion');
+  const tally = document.getElementById('quizControlTally');
+  const bars = document.getElementById('quizControlBars');
+  const btnReveal = document.getElementById('btnRevealQuiz');
+  const btnNext = document.getElementById('btnNextQuiz');
+  const timerWrap = document.getElementById('quizControlTimerWrap');
+
+  if (data.phase === 'voting' && data.questionStartedAt) {
+    quizControlTimer = { active: true, questionStartedAt: data.questionStartedAt, timeLimitMs: data.timeLimitMs || 20000 };
+    if (timerWrap) timerWrap.classList.remove('hidden');
+  } else {
+    quizControlTimer.active = false;
+    if (timerWrap) timerWrap.classList.add('hidden');
+  }
+
+  if (data.phase === 'complete') {
+    if (btnReveal) btnReveal.classList.add('hidden');
+    if (btnNext) btnNext.classList.add('hidden');
+    const key = `complete|${data.activeQuizId}`;
+    if (key === quizControlRenderKey) return;
+    quizControlRenderKey = key;
+
+    if (qText) qText.textContent = 'Quiz complete';
+    if (tally) tally.textContent = `See the Quiz Results tab for the full breakdown.`;
+    if (bars) bars.innerHTML = (data.leaderboard || []).slice(0, 5).map((l, i) => `
+      <div class="quiz-bar-row">
+        <div class="quiz-bar-label"><span>#${i + 1} ${l.name}</span><span>${l.score} pts</span></div>
+      </div>
+    `).join('') || `<div style="color:var(--text-dim); font-size:0.8rem;">No answers recorded.</div>`;
+    return;
+  }
+
+  if (btnReveal) btnReveal.classList.remove('hidden');
+  if (btnNext) btnNext.classList.remove('hidden');
+
+  if (tally) tally.textContent = `${data.answered} of ${data.totalUsers} answered`;
+
+  // Only reveal which option is correct once everyone's had a chance to vote (or the presenter reveals) —
+  // otherwise the presenter's own screen spoils the answer the instant a question opens.
+  const showCorrect = data.phase === 'revealed' || (data.totalUsers > 0 && data.answered >= data.totalUsers);
+
+  const key = `${data.phase}|${data.activeQuizId}|${data.questionN || data.activeQuestionN}|${showCorrect}`;
+  const contentChanged = key !== quizControlRenderKey;
+  quizControlRenderKey = key;
+
+  if (contentChanged && qText) qText.textContent = data.question || '';
+
+  const totalVotes = data.optionCounts.reduce((a, b) => a + b, 0) || 1;
+  if (bars) {
+    if (contentChanged) {
+      bars.innerHTML = data.options.map((opt, i) => {
+        const isCorrect = showCorrect && i === data.correct;
+        return `
+          <div class="quiz-bar-row ${isCorrect ? 'correct' : ''}" data-option-index="${i}">
+            <div class="quiz-bar-label"><span>${opt} ${isCorrect ? '✅' : ''}</span><span data-count>0 · 0%</span></div>
+            <div class="quiz-bar-bg"><div class="quiz-bar-fill" data-fill></div></div>
+          </div>
+        `;
+      }).join('');
+      void bars.offsetWidth; // force a reflow so the bars grow from 0 instead of snapping in
+    }
+    // Always refresh the live counts/widths, even when we skip re-animating the container
+    bars.querySelectorAll('.quiz-bar-row').forEach(row => {
+      const i = parseInt(row.getAttribute('data-option-index'));
+      const count = data.optionCounts[i] || 0;
+      const pct = Math.round((count / totalVotes) * 100);
+      const countLabel = row.querySelector('[data-count]');
+      const fill = row.querySelector('[data-fill]');
+      if (countLabel) countLabel.textContent = `${count} · ${pct}%`;
+      if (fill) fill.style.width = `${pct}%`;
+    });
+  }
+}
+
+function setupQuizControlListeners() {
+  if (quizControlListenersSetup) return;
+
+  const btnLaunch = document.getElementById('btnLaunchQuiz');
+  const btnReveal = document.getElementById('btnRevealQuiz');
+  const btnNext = document.getElementById('btnNextQuiz');
+  const btnEnd = document.getElementById('btnEndQuiz');
+  const quizSelect = document.getElementById('quizSelect');
+
+  async function sendQuizAction(action, extra) {
+    try {
+      const res = await fetch(`${API}/api/admin/quiz-control`, {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...extra })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Quiz action failed');
+      await loadQuizState();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    }
+  }
+
+  if (btnLaunch) btnLaunch.addEventListener('click', () => {
+    if (!quizSelect || !quizSelect.value) return;
+    sendQuizAction('launch', { quizId: quizSelect.value });
+  });
+  if (btnReveal) btnReveal.addEventListener('click', () => sendQuizAction('reveal'));
+  if (btnNext) btnNext.addEventListener('click', () => sendQuizAction('next'));
+  if (btnEnd) btnEnd.addEventListener('click', () => {
+    if (!confirm('End the live quiz for all operators?')) return;
+    sendQuizAction('end');
+  });
+
+  quizControlListenersSetup = true;
+}
+
+async function loadQuizResults() {
+  const select = document.getElementById('quizResultsSelect');
+  if (!select || !select.value) return;
+
+  const res = await fetch(`${API}/api/admin/quiz-results?quizId=${encodeURIComponent(select.value)}`, { headers: authHeaders() });
+  if (!res.ok) return;
+  const data = await res.json();
+
+  const qBody = document.getElementById('quizQuestionsTableBody');
+  if (qBody) {
+    qBody.innerHTML = data.perQuestion.map(q => `
+      <tr>
+        <td class="mono">${q.n}</td>
+        <td>${q.question}</td>
+        <td>${q.answered}</td>
+        <td style="font-weight:600; color:var(--accent);">${q.pctCorrect}%</td>
+      </tr>
+    `).join('') || `<tr><td colspan="4" style="color:var(--text-dim);">No data yet.</td></tr>`;
+  }
+
+  const lBody = document.getElementById('quizLeaderboardTableBody');
+  if (lBody) {
+    lBody.innerHTML = data.perUser.map(u => `
+      <tr><td>${u.name}</td><td style="font-weight:600; color:var(--accent);">${u.score}</td><td>${u.correctCount}</td></tr>
+    `).join('') || `<tr><td colspan="3" style="color:var(--text-dim);">No answers recorded yet.</td></tr>`;
   }
 }
 

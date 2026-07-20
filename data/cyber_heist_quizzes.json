@@ -1,0 +1,236 @@
+{
+  "event": "Cyber Heist",
+  "quizzes": [
+    {
+      "id": "quiz1",
+      "title": "Quiz 1 — After Scenarios 1-3",
+      "theme": "Would you have caught it?",
+      "questions": [
+        {
+          "n": 1,
+          "question": "A scam caller shows you a genuine-looking notice with your real PAN number on it. What does that most likely mean?",
+          "options": ["They're actually from a government agency", "They hacked your bank", "Your data leaked from somewhere you gave it", "They guessed it"],
+          "correct": 2,
+          "reveal": "Your PAN sits with dozens of companies. India's PAN was the most targeted identity document globally in 2024."
+        },
+        {
+          "n": 2,
+          "question": "You get a call, a WhatsApp video call, and an official-looking PDF all within ten minutes. Why the multiple channels?",
+          "options": ["To seem professional", "Each one makes the next feel verified", "To confuse you", "To avoid detection"],
+          "correct": 1,
+          "reveal": "Layered contact manufactures legitimacy. Each channel appears to confirm the others."
+        },
+        {
+          "n": 3,
+          "question": "Which is the strongest reason not to install an APK sent by your bank's official-looking number?",
+          "options": ["The number could be spoofed", "APKs contain malware", "Banks distribute only through app stores — always", "It might be an old version"],
+          "correct": 2,
+          "reveal": "No real bank ever sends an app file. The rule has no exceptions, so you never have to judge the message."
+        },
+        {
+          "n": 4,
+          "question": "Digital arrest victims are often kept on video call overnight. Why does that specifically work?",
+          "options": ["It records evidence against them", "Fatigue makes people compliant", "It prevents them consulting anyone", "It seems more official"],
+          "correct": 2,
+          "reveal": "Isolation is the weapon. One call to a family member breaks the entire scam."
+        },
+        {
+          "n": 5,
+          "question": "OTP scams in Bengaluru fell by half between 2022 and 2024. What happened to total fraud losses?",
+          "options": ["Also fell", "Stayed flat", "Rose sharply", "Fell slightly"],
+          "correct": 2,
+          "reveal": "Investment scams rose 1,288% in the same window. Awareness pushed fraud upmarket rather than eliminating it."
+        },
+        {
+          "n": 6,
+          "question": "A Collect request arrives for Rs 1 from an unknown UPI ID. Why send such a tiny amount?",
+          "options": ["To test if the ID works", "To get you used to approving without reading", "It's a mistake", "To check your balance"],
+          "correct": 1,
+          "reveal": "Small amounts build the habit of approving without checking. The large request comes later."
+        },
+        {
+          "n": 7,
+          "question": "Your phone shows a warning before installing an APK. Why do most victims ignore it?",
+          "options": ["They don't read English", "The warning is unclear", "They're already in a panic the scammer created", "They trust their phone"],
+          "correct": 2,
+          "reveal": "Urgency is manufactured first, precisely so safety warnings get overridden."
+        },
+        {
+          "n": 8,
+          "question": "Which target profile does the digital arrest scam actually prefer?",
+          "options": ["People who are easily frightened", "People unfamiliar with technology", "People with assets and reputations to protect", "Elderly people living alone"],
+          "correct": 2,
+          "reveal": "Victims include doctors, professors and retired bankers. Education is not protection here."
+        },
+        {
+          "n": 9,
+          "question": "A wedding invite APK spreads to your contacts automatically. What makes this the most effective delivery method?",
+          "options": ["It reaches many people fast", "WhatsApp doesn't block it", "The victim's trust is inherited by the attacker", "Files look harmless"],
+          "correct": 2,
+          "reveal": "You don't just become a victim, you become the delivery mechanism. Your friends trust you, not the scammer."
+        },
+        {
+          "n": 10,
+          "question": "India's cyber fraud losses tripled in one year. What's the most likely single biggest driver?",
+          "options": ["More internet users", "Weaker bank security", "Scams shifting to high-value, longer cons", "Better reporting"],
+          "correct": 2,
+          "reveal": "Losses jumped from Rs 7,465 crore in 2023 to Rs 22,845 crore in 2024, while case growth was far slower."
+        }
+      ]
+    },
+    {
+      "id": "quiz2",
+      "title": "Quiz 2 — After Scenarios 4-6",
+      "theme": "Greed, trust and the numbers",
+      "questions": [
+        {
+          "n": 1,
+          "question": "A Ponzi scheme pays out reliably for three years. What does that tell you?",
+          "options": ["It might be legitimate", "The operators are skilled", "It's still growing — collapse comes when growth stops", "Returns are real but risky"],
+          "correct": 2,
+          "reveal": "Payouts come from new entrants. Reliability just means recruitment hasn't slowed yet."
+        },
+        {
+          "n": 2,
+          "question": "A Telegram group gave you five correct stock calls in a row before asking for money. Most likely explanation?",
+          "options": ["They have real information", "Their model works", "Other groups got the opposite calls", "Coincidence"],
+          "correct": 2,
+          "reveal": "Split-testing con. Send half up, half down, keep the winners, repeat. Survivors think they found a genius."
+        },
+        {
+          "n": 3,
+          "question": "Why do voice-cloning scams almost always involve an emergency?",
+          "options": ["Emergencies are believable", "Panic prevents you from verifying", "It justifies a bad connection", "It explains why they need money"],
+          "correct": 1,
+          "reveal": "The clone only has to survive sixty seconds. Urgency ensures you never call back to check."
+        },
+        {
+          "n": 4,
+          "question": "Investment scams take roughly three-quarters of India's fraud losses but far fewer cases than phishing. What does that imply?",
+          "options": ["They're harder to detect", "Fewer victims, much larger individual losses", "They're better organised", "Victims are wealthier"],
+          "correct": 1,
+          "reveal": "Roughly Rs 15,000-17,000 crore a year. Fear-based scams get headlines, greed-based scams take the money."
+        },
+        {
+          "n": 5,
+          "question": "A deepfake of a famous businessman endorsing a trading app works mainly because...",
+          "options": ["The video looks real", "People trust celebrities", "Familiarity substitutes for verification", "It's shared widely"],
+          "correct": 2,
+          "reveal": "A Pune man lost Rs 43 lakh to a fake video of Narayana and Sudha Murthy."
+        },
+        {
+          "n": 6,
+          "question": "A task-based earning app asks for a small activation fee. What's the fee really for?",
+          "options": ["Revenue", "Filtering serious users", "Establishing that you'll pay them", "Covering costs"],
+          "correct": 2,
+          "reveal": "The small payment builds the relationship. It targets students and first jobbers specifically."
+        },
+        {
+          "n": 7,
+          "question": "Why do betting and loan apps demand access to your contacts and gallery?",
+          "options": ["For account verification", "To personalise ads", "To use against you later", "To detect fraud"],
+          "correct": 2,
+          "reveal": "That access becomes the extortion tool once you owe them or want out."
+        },
+        {
+          "n": 8,
+          "question": "Someone shows you real withdrawal screenshots from an investment platform. Why isn't this proof?",
+          "options": ["Screenshots are edited", "Early withdrawals are paid to attract more money", "The platform is new", "Amounts are small"],
+          "correct": 1,
+          "reveal": "Early payouts are the marketing budget. They're funded by the people who come next."
+        },
+        {
+          "n": 9,
+          "question": "Half of UPI fraud victims never report. What's the most damaging consequence?",
+          "options": ["Underestimated statistics", "Victims lose recovery chances", "Police can't link cases to find networks", "Banks avoid liability"],
+          "correct": 2,
+          "reveal": "Individual losses are recoverable. Unreported patterns mean the network behind them keeps operating."
+        },
+        {
+          "n": 10,
+          "question": "What makes guaranteed returns a structural impossibility, not just a lie?",
+          "options": ["Markets are volatile", "SEBI prohibits it", "Guaranteed return means no risk — which pays nearly nothing", "Nobody can predict markets"],
+          "correct": 2,
+          "reveal": "Risk and return are linked. A genuinely guaranteed return would pay close to a government bond, not 40 percent."
+        }
+      ]
+    },
+    {
+      "id": "quiz3",
+      "title": "Quiz 3 — After Scenarios 7-10 (Closer)",
+      "theme": "What would you do?",
+      "questions": [
+        {
+          "n": 1,
+          "question": "Your SIM stops working on a Friday evening. Why does the timing matter?",
+          "options": ["Networks are busy", "Support desks are closed till Monday", "More transactions happen", "Fewer police available"],
+          "correct": 1,
+          "reveal": "Attackers pick windows where you can't get help. The weekend is a deliberate choice."
+        },
+        {
+          "n": 2,
+          "question": "In a SIM swap, the scammer needs to fool a telecom employee, not your bank. What does that reveal?",
+          "options": ["Telecoms are careless", "Your security is only as strong as its weakest external dependency", "Banks are secure", "SIM cards are outdated"],
+          "correct": 1,
+          "reveal": "Your bank can be perfectly secure and you still lose everything through a counter at a telecom store."
+        },
+        {
+          "n": 3,
+          "question": "Why is SMS-based OTP considered the weakest form of two-factor authentication?",
+          "options": ["SMS can be intercepted", "Messages are slow", "It's tied to a SIM someone else can obtain", "Networks are insecure"],
+          "correct": 2,
+          "reveal": "Authenticator apps aren't tied to your SIM, which is why security professionals moved away from SMS."
+        },
+        {
+          "n": 4,
+          "question": "An insider quietly siphons funds for two years. Why do audits usually miss it?",
+          "options": ["Audits are annual", "They cover their tracks", "They never break a rule they aren't allowed to break", "Amounts are small"],
+          "correct": 2,
+          "reveal": "No control is violated, so no alarm fires. Legitimate access is the hardest thing to police."
+        },
+        {
+          "n": 5,
+          "question": "Forcing employees to take continuous leave is a fraud control because...",
+          "options": ["It reduces stress", "It allows audits", "Ongoing cover-ups need daily maintenance", "It rotates responsibilities"],
+          "correct": 2,
+          "reveal": "Two weeks away with someone else doing the job, and most long-running frauds unravel on their own."
+        },
+        {
+          "n": 6,
+          "question": "A shopping site offers cash on delivery. Why is that a stronger trust signal than reviews or a padlock?",
+          "options": ["It's more convenient", "It costs the seller something to fake", "It's regulated", "It proves they exist"],
+          "correct": 1,
+          "reveal": "Padlocks and on-site reviews are trivially faked. Agreeing to be paid only on delivery is not."
+        },
+        {
+          "n": 7,
+          "question": "A visa agent charges everything upfront. What incentive problem does that create?",
+          "options": ["They may overcharge", "They're paid whether or not you get the visa", "No refund is possible", "They may disappear"],
+          "correct": 1,
+          "reveal": "Legitimate agents charge in stages tied to filed applications, so they're paid for outcomes."
+        },
+        {
+          "n": 8,
+          "question": "Recovery rates drop sharply after the first few hours of a fraud. Why?",
+          "options": ["Police get busy", "Banks close", "Money is split across many accounts and withdrawn", "Evidence disappears"],
+          "correct": 2,
+          "reveal": "An Indore professor lost Rs 33 lakh and recovered Rs 26.45 lakh because accounts were frozen fast. Dial 1930."
+        },
+        {
+          "n": 9,
+          "question": "Which is hardest to defend against, and why?",
+          "options": ["Phishing — it's constant", "Malware — it's invisible", "Insider fraud — the access is legitimate", "Deepfakes — they're convincing"],
+          "correct": 2,
+          "reveal": "You can block a stranger. You cannot easily block someone you already decided to trust."
+        },
+        {
+          "n": 10,
+          "question": "What single behaviour would prevent the largest share of everything covered today?",
+          "options": ["Strong passwords", "Antivirus software", "Verifying through a channel they didn't give you", "Avoiding unknown links"],
+          "correct": 2,
+          "reveal": "Almost every scam depends on you staying inside the channel they control. Stepping outside it breaks nearly all of them."
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { verifyToken, requireRole } = require('../middleware/auth');
+const { QUESTION_TIME_LIMIT_MS } = require('../quizConfig');
 
 const router = express.Router();
 router.use(verifyToken, requireRole('admin'));
@@ -25,6 +26,129 @@ router.post('/event-focus', (req, res) => {
     global.focusLocked = focusLocked;
   }
   res.json({ ok: true, activeFocusId: global.activeFocusId, focusLocked: global.focusLocked });
+});
+
+// Live Mentimeter-style quiz control state
+// phase: idle | voting | revealed | complete
+global.quizState = { activeQuizId: null, activeQuestionN: 0, phase: 'idle', questionStartedAt: null };
+
+router.get('/quiz-state', (req, res) => {
+  const quizzes = db.prepare('SELECT id, title, theme FROM quizzes ORDER BY sort_order').all();
+  res.json({ ...global.quizState, timeLimitMs: QUESTION_TIME_LIMIT_MS, quizzes });
+});
+
+router.post('/quiz-control', (req, res) => {
+  const { action, quizId } = req.body || {};
+
+  if (action === 'launch') {
+    const quiz = db.prepare('SELECT id FROM quizzes WHERE id = ?').get(quizId);
+    if (!quiz) return res.status(400).json({ error: 'Unknown quiz id' });
+    // Launching a quiz starts a fresh live round — clear any answers left over from a prior run
+    // (a previous live session, or someone trying it out beforehand) so voting starts at zero.
+    db.prepare('DELETE FROM quiz_answers WHERE quiz_id = ?').run(quizId);
+    global.quizState = { activeQuizId: quizId, activeQuestionN: 1, phase: 'voting', questionStartedAt: Date.now() };
+  } else if (action === 'reveal') {
+    if (!global.quizState.activeQuizId) return res.status(400).json({ error: 'No active quiz' });
+    global.quizState.phase = 'revealed';
+  } else if (action === 'next') {
+    const { activeQuizId, activeQuestionN } = global.quizState;
+    if (!activeQuizId) return res.status(400).json({ error: 'No active quiz' });
+    const maxN = db.prepare('SELECT MAX(n) m FROM quiz_questions WHERE quiz_id = ?').get(activeQuizId).m || 0;
+    if (activeQuestionN < maxN) {
+      global.quizState.activeQuestionN += 1;
+      global.quizState.phase = 'voting';
+      global.quizState.questionStartedAt = Date.now();
+    } else {
+      global.quizState.phase = 'complete';
+    }
+  } else if (action === 'end') {
+    global.quizState = { activeQuizId: null, activeQuestionN: 0, phase: 'idle', questionStartedAt: null };
+  } else {
+    return res.status(400).json({ error: 'Unknown action' });
+  }
+
+  res.json({ ok: true, ...global.quizState });
+});
+
+// Live per-option vote tally for the currently active question (or final leaderboard once complete)
+router.get('/quiz-live', (req, res) => {
+  const { activeQuizId, activeQuestionN, phase, questionStartedAt } = global.quizState;
+  if (!activeQuizId) return res.json({ activeQuizId: null });
+
+  const totalUsers = db.prepare("SELECT COUNT(*) c FROM users WHERE role = 'user'").get().c || 0;
+
+  if (phase === 'complete') {
+    const leaderboard = db.prepare(`
+      SELECT COALESCE(u.name, u.username) AS name,
+             COUNT(*) AS answered,
+             SUM(qa.points) AS score,
+             SUM(qa.is_correct) AS correctCount
+      FROM quiz_answers qa
+      JOIN users u ON u.id = qa.user_id AND u.role = 'user'
+      WHERE qa.quiz_id = ?
+      GROUP BY u.id
+      ORDER BY score DESC, answered DESC
+    `).all(activeQuizId);
+    return res.json({ activeQuizId, activeQuestionN, phase, totalUsers, leaderboard });
+  }
+
+  const question = db.prepare('SELECT * FROM quiz_questions WHERE quiz_id = ? AND n = ?').get(activeQuizId, activeQuestionN);
+  if (!question) return res.json({ activeQuizId, activeQuestionN, phase, totalUsers, optionCounts: [], answered: 0 });
+
+  const options = JSON.parse(question.options_json);
+  const rows = db.prepare(`
+    SELECT selected_option, COUNT(*) c FROM quiz_answers
+    WHERE quiz_id = ? AND question_n = ?
+    GROUP BY selected_option
+  `).all(activeQuizId, activeQuestionN);
+
+  const optionCounts = options.map((_, i) => {
+    const row = rows.find(r => r.selected_option === i);
+    return row ? row.c : 0;
+  });
+  const answered = optionCounts.reduce((a, b) => a + b, 0);
+
+  res.json({
+    activeQuizId, activeQuestionN, phase, totalUsers,
+    questionStartedAt, timeLimitMs: QUESTION_TIME_LIMIT_MS,
+    question: question.question, options, correct: question.correct, reveal: question.reveal,
+    optionCounts, answered
+  });
+});
+
+// Post-event results: per-question accuracy + per-user scores for a given quiz
+router.get('/quiz-results', (req, res) => {
+  const quizId = req.query.quizId;
+  const quiz = db.prepare('SELECT id, title, theme FROM quizzes WHERE id = ?').get(quizId);
+  if (!quiz) return res.status(400).json({ error: 'Unknown quiz id' });
+
+  const questions = db.prepare('SELECT * FROM quiz_questions WHERE quiz_id = ? ORDER BY n').all(quizId);
+  const answerRows = db.prepare('SELECT question_n, selected_option, is_correct FROM quiz_answers WHERE quiz_id = ?').all(quizId);
+
+  const perQuestion = questions.map(q => {
+    const options = JSON.parse(q.options_json);
+    const answersForQ = answerRows.filter(a => a.question_n === q.n);
+    const optionCounts = options.map((_, i) => answersForQ.filter(a => a.selected_option === i).length);
+    const correctCount = answersForQ.filter(a => a.is_correct).length;
+    return {
+      n: q.n, question: q.question, options, correct: q.correct,
+      answered: answersForQ.length,
+      optionCounts,
+      pctCorrect: answersForQ.length ? Math.round((correctCount / answersForQ.length) * 100) : 0
+    };
+  });
+
+  const perUser = db.prepare(`
+    SELECT COALESCE(u.name, u.username) AS name, COUNT(*) AS answered,
+           SUM(qa.points) AS score, SUM(qa.is_correct) AS correctCount
+    FROM quiz_answers qa
+    JOIN users u ON u.id = qa.user_id AND u.role = 'user'
+    WHERE qa.quiz_id = ?
+    GROUP BY u.id
+    ORDER BY score DESC, answered DESC
+  `).all(quizId);
+
+  res.json({ quiz, perQuestion, perUser, totalQuestions: questions.length });
 });
 
 // Total clicks per risk card, plus click counts per operator

@@ -36,10 +36,49 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_clicks_user ON clicks(user_id);
   CREATE INDEX IF NOT EXISTS idx_clicks_risk ON clicks(risk_id);
+
+  CREATE TABLE IF NOT EXISTS quizzes (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    theme TEXT NOT NULL,
+    sort_order INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS quiz_questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quiz_id TEXT NOT NULL REFERENCES quizzes(id),
+    n INTEGER NOT NULL,
+    question TEXT NOT NULL,
+    options_json TEXT NOT NULL,
+    correct INTEGER NOT NULL,
+    reveal TEXT NOT NULL,
+    UNIQUE(quiz_id, n)
+  );
+
+  CREATE TABLE IF NOT EXISTS quiz_answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    quiz_id TEXT NOT NULL REFERENCES quizzes(id),
+    question_n INTEGER NOT NULL,
+    selected_option INTEGER NOT NULL,
+    is_correct INTEGER NOT NULL,
+    points INTEGER NOT NULL DEFAULT 0,
+    answered_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(user_id, quiz_id, question_n)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_quiz_answers_user ON quiz_answers(user_id);
+  CREATE INDEX IF NOT EXISTS idx_quiz_answers_quiz ON quiz_answers(quiz_id, question_n);
 `);
 
 try {
   db.exec("ALTER TABLE users ADD COLUMN name TEXT;");
+} catch (e) {
+  // Column already exists or error, ignore
+}
+
+try {
+  db.exec("ALTER TABLE quiz_answers ADD COLUMN points INTEGER NOT NULL DEFAULT 0;");
 } catch (e) {
   // Column already exists or error, ignore
 }
@@ -93,6 +132,24 @@ if (riskCount === 0) {
     VALUES (?, ?, ?, ?, ?, ?, ?)`);
   const tx = db.transaction((rows) => rows.forEach(r => insert.run(...r)));
   tx(risks);
+}
+
+// Seed the 3 live quizzes and their questions, once
+const quizCount = db.prepare('SELECT COUNT(*) c FROM quizzes').get().c;
+if (quizCount === 0) {
+  const quizData = require('./data/cyber_heist_quizzes.json');
+  const insertQuiz = db.prepare(`INSERT INTO quizzes (id, title, theme, sort_order) VALUES (?, ?, ?, ?)`);
+  const insertQuestion = db.prepare(`INSERT INTO quiz_questions (quiz_id, n, question, options_json, correct, reveal)
+    VALUES (?, ?, ?, ?, ?, ?)`);
+  const tx = db.transaction((quizzes) => {
+    quizzes.forEach((quiz, i) => {
+      insertQuiz.run(quiz.id, quiz.title, quiz.theme, i + 1);
+      quiz.questions.forEach((q) => {
+        insertQuestion.run(quiz.id, q.n, q.question, JSON.stringify(q.options), q.correct, q.reveal);
+      });
+    });
+  });
+  tx(quizData.quizzes);
 }
 
 // Seed or update one admin account to stay synchronized with .env config

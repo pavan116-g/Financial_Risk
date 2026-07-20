@@ -50,6 +50,7 @@
     <div class="nav-item active" id="navBtnOverview">Security Console</div>
     <div class="nav-item" id="navBtnUsers">Access Logs</div>
     <div class="nav-item" id="navBtnRisks">Threat Database</div>
+    <div class="nav-item" id="navBtnQuiz">Quiz Results</div>
     <div class="sidebar-foot" style="display:flex; flex-direction:column; gap:4px;">
       <div>Signed in as <span id="adminWhoami" class="mono"></span></div>
       <button id="adminLogout">Sign out</button>
@@ -117,6 +118,41 @@
           </div>
           <div id="eventFocusUsers" style="flex:1; display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; min-height:60px;">
             <!-- Operator badges populated dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- LIVE QUIZ CONTROL (Mentimeter-style) -->
+      <div class="panel-row" style="grid-template-columns: 1fr;">
+        <div class="panel classified">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+            <h3>Live Quiz Control</h3>
+            <span id="quizStatusPill" class="mono" style="font-size:0.7rem; color:var(--text-dim);">No quiz active</span>
+          </div>
+
+          <div id="quizLauncher" style="display:flex; gap:10px; margin-bottom: 4px;">
+            <select id="quizSelect" style="flex:1; background:var(--surface-2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family:'Space Grotesk', sans-serif; font-size:0.9rem; cursor:pointer;">
+              <!-- Populated dynamically -->
+            </select>
+            <button id="btnLaunchQuiz" class="btn-danger-outline" style="color:var(--accent); border-color:rgba(255, 0, 51, 0.4);">Launch Quiz</button>
+          </div>
+
+          <div id="quizControlPanel" class="hidden">
+            <div style="font-family:'Bebas Neue','Space Grotesk',sans-serif; font-size:1.15rem; margin: 8px 0 4px;" id="quizControlQuestion"></div>
+            <div class="mono" style="font-size:0.75rem; color:var(--text-dim); margin-bottom:10px;" id="quizControlTally"></div>
+
+            <div id="quizControlTimerWrap" class="quiz-timer-wrap hidden">
+              <div class="quiz-timer-bar-bg"><div class="quiz-timer-bar-fill" id="quizControlTimerFill"></div></div>
+              <span class="quiz-timer-text" id="quizControlTimerText"></span>
+            </div>
+
+            <div id="quizControlBars" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;"></div>
+
+            <div style="display:flex; gap:10px;">
+              <button id="btnRevealQuiz" class="btn-danger-outline">Reveal Answer</button>
+              <button id="btnNextQuiz" class="btn-danger-outline">Next Question</button>
+              <button id="btnEndQuiz" class="btn-danger-outline" style="margin-left:auto;">End Quiz</button>
+            </div>
           </div>
         </div>
       </div>
@@ -204,6 +240,41 @@
             </thead>
             <tbody id="tabRisksTableBody"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUIZ RESULTS TAB -->
+    <div id="tabContentQuiz" class="tab-content hidden">
+      <h1>Quiz Results</h1>
+      <p class="sub">Post-event breakdown of live quiz accuracy and operator scores.</p>
+
+      <div class="panel" style="margin-bottom: 20px;">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <select id="quizResultsSelect" style="flex:1; max-width:320px; background:var(--surface-2); border:1px solid var(--border); padding:10px; border-radius:8px; color:var(--text); font-family:'Space Grotesk', sans-serif; font-size:0.9rem; cursor:pointer;">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+      </div>
+
+      <div class="panel-row" style="grid-template-columns: 1.6fr 1fr;">
+        <div class="panel">
+          <h3>Per-Question Accuracy</h3>
+          <div class="tbl-scroll" style="max-height: 420px; overflow: auto;">
+            <table>
+              <thead><tr><th>#</th><th>Question</th><th>Answered</th><th>% Correct</th></tr></thead>
+              <tbody id="quizQuestionsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Operator Leaderboard</h3>
+          <div class="tbl-scroll" style="max-height: 420px; overflow: auto;">
+            <table>
+              <thead><tr><th>Operator</th><th>Points</th><th>Correct</th></tr></thead>
+              <tbody id="quizLeaderboardTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

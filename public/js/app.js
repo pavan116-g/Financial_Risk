@@ -94,6 +94,9 @@ async function enterApp() {
 
   // High-frequency polling to check presenter focus updates during live event
   setInterval(loadRisks, 3000);
+
+  await pollQuizState();
+  setInterval(pollQuizState, 2000);
 }
 
 async function loadRisks() {
@@ -244,6 +247,195 @@ async function trackClick(riskId) {
       body: JSON.stringify({ riskId }),
     });
   } catch (e) { /* non-blocking */ }
+}
+
+// ---------- Live Quiz ----------
+const quizOverlay = document.getElementById('quizOverlay');
+const quizTheme = document.getElementById('quizTheme');
+const quizProgress = document.getElementById('quizProgress');
+const quizBody = document.getElementById('quizBody');
+const quizTimerWrap = document.getElementById('quizTimerWrap');
+const quizTimerFill = document.getElementById('quizTimerFill');
+const quizTimerText = document.getElementById('quizTimerText');
+
+let quizSubmitting = false;
+let dismissedQuizKey = null; // "quizId" the operator manually closed after completion
+let quizRenderKey = null; // dedupes re-renders so we only animate on real content changes
+let quizTimer = { active: false, questionStartedAt: null, timeLimitMs: null };
+
+// Smooth per-frame countdown, decoupled from the (slower) polling interval
+setInterval(() => {
+  if (!quizTimer.active) return;
+  const remainingMs = Math.max(0, quizTimer.questionStartedAt + quizTimer.timeLimitMs - Date.now());
+  const pct = Math.max(0, Math.min(100, (remainingMs / quizTimer.timeLimitMs) * 100));
+  quizTimerFill.style.width = `${pct}%`;
+  quizTimerText.textContent = `${Math.ceil(remainingMs / 1000)}s`;
+  quizTimerFill.classList.toggle('low', remainingMs <= 5000);
+}, 200);
+
+async function pollQuizState() {
+  const token = localStorage.getItem('rw_token');
+  try {
+    const res = await fetch(`${API}/api/quiz/state`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return;
+    const data = await res.json();
+    renderQuiz(data);
+  } catch (e) { /* non-blocking */ }
+}
+
+function playQuizEnterAnimation() {
+  quizBody.classList.remove('quiz-anim-in');
+  void quizBody.offsetWidth; // force reflow so the animation restarts
+  quizBody.classList.add('quiz-anim-in');
+}
+
+function renderQuiz(data) {
+  if (!data.activeQuizId || data.phase === 'idle') {
+    quizOverlay.classList.add('hidden');
+    quizRenderKey = null;
+    quizTimer.active = false;
+    return;
+  }
+
+  if (data.phase === 'complete' && dismissedQuizKey === data.activeQuizId) {
+    quizOverlay.classList.add('hidden');
+    quizTimer.active = false;
+    return;
+  }
+
+  quizOverlay.classList.remove('hidden');
+  quizTheme.textContent = data.quiz ? data.quiz.theme : 'Live Quiz';
+  quizProgress.textContent = data.phase === 'complete' ? 'Complete' : `Question ${data.questionN} of ${data.totalQuestions}`;
+
+  if (data.phase === 'voting' && data.questionStartedAt) {
+    quizTimer = { active: true, questionStartedAt: data.questionStartedAt, timeLimitMs: data.timeLimitMs || 20000 };
+    quizTimerWrap.classList.remove('hidden');
+  } else {
+    quizTimer.active = false;
+    quizTimerWrap.classList.add('hidden');
+  }
+
+  // Skip re-rendering (and re-animating) when nothing about the visible content actually changed
+  const key = `${data.activeQuizId}|${data.phase}|${data.questionN || ''}|${data.myAnswer}`;
+  if (key === quizRenderKey) return;
+  quizRenderKey = key;
+
+  if (data.phase === 'complete') {
+    renderQuizComplete(data);
+  } else if (data.phase === 'voting') {
+    renderQuizVoting(data);
+  } else if (data.phase === 'revealed') {
+    renderQuizRevealed(data);
+  }
+  playQuizEnterAnimation();
+}
+
+function renderQuizVoting(data) {
+  if (data.myAnswer !== null) {
+    quizBody.innerHTML = `
+      <p class="quiz-question">${data.question}</p>
+      <div class="quiz-locked">
+        <span class="quiz-locked-check">✅</span>
+        Locked in. Waiting for reveal...
+      </div>
+    `;
+    return;
+  }
+
+  quizBody.innerHTML = `
+    <p class="quiz-question">${data.question}</p>
+    <div class="quiz-options">
+      ${data.options.map((opt, i) => `
+        <button class="quiz-option" data-option="${i}">${opt}</button>
+      `).join('')}
+    </div>
+  `;
+
+  quizBody.querySelectorAll('.quiz-option').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (quizSubmitting) return;
+      quizSubmitting = true;
+      quizBody.querySelectorAll('.quiz-option').forEach(b => b.disabled = true);
+      btn.classList.add('picked');
+      try {
+        await submitQuizAnswer(data.activeQuizId, data.questionN, parseInt(btn.getAttribute('data-option')));
+      } finally {
+        quizSubmitting = false;
+        pollQuizState();
+      }
+    });
+  });
+}
+
+async function submitQuizAnswer(quizId, questionN, selectedOption) {
+  const token = localStorage.getItem('rw_token');
+  try {
+    await fetch(`${API}/api/quiz/answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ quizId, questionN, selectedOption }),
+    });
+  } catch (e) { /* non-blocking */ }
+}
+
+function renderQuizRevealed(data) {
+  const totalVotes = data.optionCounts.reduce((a, b) => a + b, 0) || 1;
+  quizBody.innerHTML = `
+    <p class="quiz-question">${data.question}</p>
+    ${data.myAnswer !== null ? `<div class="quiz-points-earned ${data.myCorrect ? 'positive' : ''}">${data.myCorrect ? `+${data.myPoints} points` : 'No points this round'}</div>` : ''}
+    <div class="quiz-results">
+      ${data.options.map((opt, i) => {
+        const count = data.optionCounts[i] || 0;
+        const pct = Math.round((count / totalVotes) * 100);
+        const isCorrect = i === data.correct;
+        const isMine = i === data.myAnswer;
+        return `
+          <div class="quiz-result-row ${isCorrect ? 'correct' : ''} ${isMine && !isCorrect ? 'wrong' : ''}">
+            <div class="quiz-result-label">
+              <span>${opt} ${isCorrect ? '✅' : ''} ${isMine && !isCorrect ? '(your pick)' : ''}</span>
+              <span>${count} · ${pct}%</span>
+            </div>
+            <div class="quiz-result-bar-bg"><div class="quiz-result-bar-fill" data-target-width="${pct}"></div></div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+    <div class="quiz-reveal-text">${data.reveal}</div>
+    <div class="quiz-waiting">Waiting for the next question...</div>
+  `;
+  // Animate bars growing in from 0 instead of snapping to their final width
+  requestAnimationFrame(() => {
+    quizBody.querySelectorAll('.quiz-result-bar-fill').forEach(el => {
+      el.style.width = `${el.getAttribute('data-target-width')}%`;
+    });
+  });
+}
+
+function renderQuizComplete(data) {
+  quizBody.innerHTML = `
+    <p class="quiz-question">Quiz Complete!</p>
+    <div class="quiz-score">${data.myScore} pts</div>
+    <div class="quiz-score-sub">${data.myCorrectCount} of ${data.totalAnswered} correct</div>
+    ${data.leaderboard && data.leaderboard.length ? `
+      <div class="quiz-leaderboard">
+        <div class="quiz-leaderboard-title">Top Scores</div>
+        ${data.leaderboard.map((l, i) => `
+          <div class="quiz-leaderboard-row">
+            <span>#${i + 1} ${l.name}</span>
+            <span>${l.score} pts</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+    <button class="btn-primary" id="quizCloseBtn" style="margin-top:16px;">Close</button>
+  `;
+  const closeBtn = document.getElementById('quizCloseBtn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      dismissedQuizKey = data.activeQuizId;
+      quizOverlay.classList.add('hidden');
+    });
+  }
 }
 
 // Boot

@@ -420,6 +420,13 @@ body {
   animation: none;
 }
 
+.field-hint {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  letter-spacing: 0.01em;
+}
+
 .error-msg {
   background: rgba(255, 0, 51, 0.08);
   border: 1px dashed rgba(255, 0, 51, 0.4);

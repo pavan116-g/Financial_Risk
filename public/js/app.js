@@ -20,6 +20,8 @@ function setMode(next) {
   authError.classList.add('hidden');
   const nameField = document.getElementById('nameField');
   const nameInput = document.getElementById('nameInput');
+  const usernameHint = document.getElementById('usernameHint');
+  const usernameInput = document.getElementById('username');
   if (mode === 'login') {
     authTitle.textContent = 'Agent Login';
     authSub.textContent = 'Authenticate to initialize secure access to the threat database.';
@@ -28,6 +30,8 @@ function setMode(next) {
     tabRegisterBtn.classList.remove('active');
     if (nameField) nameField.classList.add('hidden');
     if (nameInput) nameInput.required = false;
+    if (usernameHint) usernameHint.classList.add('hidden');
+    if (usernameInput) usernameInput.removeAttribute('pattern');
   } else {
     authTitle.textContent = 'New Recruit Registration';
     authSub.textContent = 'Set up your own login to start exploring risk cards.';
@@ -36,6 +40,8 @@ function setMode(next) {
     tabRegisterBtn.classList.add('active');
     if (nameField) nameField.classList.remove('hidden');
     if (nameInput) nameInput.required = true;
+    if (usernameHint) usernameHint.classList.remove('hidden');
+    if (usernameInput) usernameInput.setAttribute('pattern', '[a-zA-Z0-9_]{3,20}');
   }
 }
 

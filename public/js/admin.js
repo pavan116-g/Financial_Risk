@@ -74,7 +74,6 @@ async function loadSummary() {
     eventFocusSelect.value = currentActiveRiskId;
   }
 
-  document.getElementById('kpiActive').textContent = totals.active_users;
   document.getElementById('kpiScans').textContent = totals.total_clicks;
   document.getElementById('kpiVectors').textContent = perRisk.length;
 

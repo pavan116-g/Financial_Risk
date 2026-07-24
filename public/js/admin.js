@@ -591,16 +591,21 @@ async function loadQuizLive() {
   const timerWrap = document.getElementById('quizControlTimerWrap');
 
   if (data.phase === 'voting' && data.questionStartedAt) {
-    quizControlTimer = { active: true, questionStartedAt: data.questionStartedAt, timeLimitMs: data.timeLimitMs || 20000 };
+    quizControlTimer = { active: true, questionStartedAt: data.questionStartedAt, timeLimitMs: data.timeLimitMs || 35000 };
+    if (timerWrap) timerWrap.classList.remove('hidden');
+  } else if (data.phase === 'revealed' && data.revealedAt) {
+    quizControlTimer = { active: true, questionStartedAt: data.revealedAt, timeLimitMs: data.revealPauseMs || 6000 };
     if (timerWrap) timerWrap.classList.remove('hidden');
   } else {
     quizControlTimer.active = false;
     if (timerWrap) timerWrap.classList.add('hidden');
   }
 
+  // The quiz paces itself automatically now — these buttons just let a presenter skip a step early.
+  if (btnReveal) btnReveal.classList.toggle('hidden', data.phase !== 'voting');
+  if (btnNext) btnNext.classList.toggle('hidden', data.phase !== 'revealed');
+
   if (data.phase === 'complete') {
-    if (btnReveal) btnReveal.classList.add('hidden');
-    if (btnNext) btnNext.classList.add('hidden');
     const key = `complete|${data.activeQuizId}`;
     if (key === quizControlRenderKey) return;
     quizControlRenderKey = key;
@@ -615,10 +620,9 @@ async function loadQuizLive() {
     return;
   }
 
-  if (btnReveal) btnReveal.classList.remove('hidden');
-  if (btnNext) btnNext.classList.remove('hidden');
-
-  if (tally) tally.textContent = `${data.answered} of ${data.totalUsers} answered`;
+  if (tally) tally.textContent = data.phase === 'revealed'
+    ? `${data.answered} of ${data.totalUsers} answered — advancing automatically`
+    : `${data.answered} of ${data.totalUsers} answered`;
 
   // Only reveal which option is correct once everyone's had a chance to vote (or the presenter reveals) —
   // otherwise the presenter's own screen spoils the answer the instant a question opens.

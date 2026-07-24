@@ -36,5 +36,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Any unhandled error in an API route lands here — return JSON instead of
+// Express's default HTML error page, which the frontend can't parse as JSON.
+app.use('/api', (err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Financial Risk Awareness app running on port ${PORT}`));

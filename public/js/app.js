@@ -308,7 +308,10 @@ function renderQuiz(data) {
   quizProgress.textContent = data.phase === 'complete' ? 'Complete' : `Question ${data.questionN} of ${data.totalQuestions}`;
 
   if (data.phase === 'voting' && data.questionStartedAt) {
-    quizTimer = { active: true, questionStartedAt: data.questionStartedAt, timeLimitMs: data.timeLimitMs || 20000 };
+    quizTimer = { active: true, questionStartedAt: data.questionStartedAt, timeLimitMs: data.timeLimitMs || 35000 };
+    quizTimerWrap.classList.remove('hidden');
+  } else if (data.phase === 'revealed' && data.revealedAt) {
+    quizTimer = { active: true, questionStartedAt: data.revealedAt, timeLimitMs: data.revealPauseMs || 6000 };
     quizTimerWrap.classList.remove('hidden');
   } else {
     quizTimer.active = false;
@@ -335,8 +338,8 @@ function renderQuizVoting(data) {
     quizBody.innerHTML = `
       <p class="quiz-question">${data.question}</p>
       <div class="quiz-locked">
-        <span class="quiz-locked-check">✅</span>
-        Locked in. Waiting for reveal...
+        <span class="quiz-locked-check">🔒</span>
+        You picked "${data.options[data.myAnswer]}". Waiting for reveal...
       </div>
     `;
     return;
@@ -401,7 +404,7 @@ function renderQuizRevealed(data) {
       }).join('')}
     </div>
     <div class="quiz-reveal-text">${data.reveal}</div>
-    <div class="quiz-waiting">Waiting for the next question...</div>
+    <div class="quiz-waiting">Next question coming up...</div>
   `;
   // Animate bars growing in from 0 instead of snapping to their final width
   requestAnimationFrame(() => {

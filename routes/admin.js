@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { verifyToken, requireRole } = require('../middleware/auth');
-const { QUESTION_TIME_LIMIT_MS } = require('../quizConfig');
+const { QUESTION_TIME_LIMIT_MS, REVEAL_PAUSE_MS } = require('../quizConfig');
 
 const router = express.Router();
 router.use(verifyToken, requireRole('admin'));
@@ -30,11 +30,46 @@ router.post('/event-focus', (req, res) => {
 
 // Live Mentimeter-style quiz control state
 // phase: idle | voting | revealed | complete
-global.quizState = { activeQuizId: null, activeQuestionN: 0, phase: 'idle', questionStartedAt: null };
+global.quizState = { activeQuizId: null, activeQuestionN: 0, phase: 'idle', questionStartedAt: null, revealedAt: null };
+
+// The quiz paces itself once launched: a voting window auto-reveals, which auto-advances —
+// the admin's buttons just let a presenter skip a step early if they want to.
+let quizAutoTimer = null;
+function clearQuizAutoTimer() {
+  if (quizAutoTimer) {
+    clearTimeout(quizAutoTimer);
+    quizAutoTimer = null;
+  }
+}
+
+function revealActiveQuestion() {
+  clearQuizAutoTimer();
+  if (!global.quizState.activeQuizId || global.quizState.phase !== 'voting') return;
+  global.quizState.phase = 'revealed';
+  global.quizState.revealedAt = Date.now();
+  quizAutoTimer = setTimeout(advanceActiveQuestion, REVEAL_PAUSE_MS);
+}
+
+function advanceActiveQuestion() {
+  clearQuizAutoTimer();
+  const { activeQuizId, activeQuestionN } = global.quizState;
+  if (!activeQuizId) return;
+  const maxN = db.prepare('SELECT MAX(n) m FROM quiz_questions WHERE quiz_id = ?').get(activeQuizId).m || 0;
+  if (activeQuestionN < maxN) {
+    global.quizState.activeQuestionN += 1;
+    global.quizState.phase = 'voting';
+    global.quizState.questionStartedAt = Date.now();
+    global.quizState.revealedAt = null;
+    quizAutoTimer = setTimeout(revealActiveQuestion, QUESTION_TIME_LIMIT_MS);
+  } else {
+    global.quizState.phase = 'complete';
+    global.quizState.revealedAt = null;
+  }
+}
 
 router.get('/quiz-state', (req, res) => {
   const quizzes = db.prepare('SELECT id, title, theme FROM quizzes ORDER BY sort_order').all();
-  res.json({ ...global.quizState, timeLimitMs: QUESTION_TIME_LIMIT_MS, quizzes });
+  res.json({ ...global.quizState, timeLimitMs: QUESTION_TIME_LIMIT_MS, revealPauseMs: REVEAL_PAUSE_MS, quizzes });
 });
 
 router.post('/quiz-control', (req, res) => {
@@ -46,23 +81,20 @@ router.post('/quiz-control', (req, res) => {
     // Launching a quiz starts a fresh live round — clear any answers left over from a prior run
     // (a previous live session, or someone trying it out beforehand) so voting starts at zero.
     db.prepare('DELETE FROM quiz_answers WHERE quiz_id = ?').run(quizId);
-    global.quizState = { activeQuizId: quizId, activeQuestionN: 1, phase: 'voting', questionStartedAt: Date.now() };
+    clearQuizAutoTimer();
+    global.quizState = { activeQuizId: quizId, activeQuestionN: 1, phase: 'voting', questionStartedAt: Date.now(), revealedAt: null };
+    quizAutoTimer = setTimeout(revealActiveQuestion, QUESTION_TIME_LIMIT_MS);
   } else if (action === 'reveal') {
-    if (!global.quizState.activeQuizId) return res.status(400).json({ error: 'No active quiz' });
-    global.quizState.phase = 'revealed';
-  } else if (action === 'next') {
-    const { activeQuizId, activeQuestionN } = global.quizState;
-    if (!activeQuizId) return res.status(400).json({ error: 'No active quiz' });
-    const maxN = db.prepare('SELECT MAX(n) m FROM quiz_questions WHERE quiz_id = ?').get(activeQuizId).m || 0;
-    if (activeQuestionN < maxN) {
-      global.quizState.activeQuestionN += 1;
-      global.quizState.phase = 'voting';
-      global.quizState.questionStartedAt = Date.now();
-    } else {
-      global.quizState.phase = 'complete';
+    if (!global.quizState.activeQuizId || global.quizState.phase !== 'voting') {
+      return res.status(400).json({ error: 'No question currently open for voting' });
     }
+    revealActiveQuestion();
+  } else if (action === 'next') {
+    if (!global.quizState.activeQuizId) return res.status(400).json({ error: 'No active quiz' });
+    advanceActiveQuestion();
   } else if (action === 'end') {
-    global.quizState = { activeQuizId: null, activeQuestionN: 0, phase: 'idle', questionStartedAt: null };
+    clearQuizAutoTimer();
+    global.quizState = { activeQuizId: null, activeQuestionN: 0, phase: 'idle', questionStartedAt: null, revealedAt: null };
   } else {
     return res.status(400).json({ error: 'Unknown action' });
   }
@@ -72,7 +104,7 @@ router.post('/quiz-control', (req, res) => {
 
 // Live per-option vote tally for the currently active question (or final leaderboard once complete)
 router.get('/quiz-live', (req, res) => {
-  const { activeQuizId, activeQuestionN, phase, questionStartedAt } = global.quizState;
+  const { activeQuizId, activeQuestionN, phase, questionStartedAt, revealedAt } = global.quizState;
   if (!activeQuizId) return res.json({ activeQuizId: null });
 
   const totalUsers = db.prepare("SELECT COUNT(*) c FROM users WHERE role = 'user'").get().c || 0;
@@ -111,6 +143,7 @@ router.get('/quiz-live', (req, res) => {
   res.json({
     activeQuizId, activeQuestionN, phase, totalUsers,
     questionStartedAt, timeLimitMs: QUESTION_TIME_LIMIT_MS,
+    revealedAt, revealPauseMs: REVEAL_PAUSE_MS,
     question: question.question, options, correct: question.correct, reveal: question.reveal,
     optionCounts, answered
   });
@@ -261,6 +294,7 @@ router.delete('/users/:id', (req, res) => {
 
   const tx = db.transaction(() => {
     db.prepare('DELETE FROM clicks WHERE user_id = ?').run(id);
+    db.prepare('DELETE FROM quiz_answers WHERE user_id = ?').run(id);
     db.prepare('DELETE FROM users WHERE id = ?').run(id);
   });
   tx();

@@ -1,13 +1,13 @@
 const express = require('express');
 const db = require('../db');
 const { verifyToken } = require('../middleware/auth');
-const { QUESTION_TIME_LIMIT_MS, MAX_POINTS, MIN_POINTS } = require('../quizConfig');
+const { QUESTION_TIME_LIMIT_MS, REVEAL_PAUSE_MS, MAX_POINTS, MIN_POINTS } = require('../quizConfig');
 
 const router = express.Router();
 
 router.get('/state', verifyToken, (req, res) => {
   const state = global.quizState || { activeQuizId: null, activeQuestionN: 0, phase: 'idle' };
-  const { activeQuizId, activeQuestionN, phase, questionStartedAt } = state;
+  const { activeQuizId, activeQuestionN, phase, questionStartedAt, revealedAt } = state;
 
   if (!activeQuizId || phase === 'idle') {
     return res.json({ activeQuizId: null, phase: 'idle' });
@@ -59,6 +59,8 @@ router.get('/state', verifyToken, (req, res) => {
     payload.reveal = question.reveal;
     payload.myCorrect = myAnswer ? !!myAnswer.is_correct : false;
     payload.myPoints = myAnswer ? myAnswer.points : 0;
+    payload.revealedAt = revealedAt;
+    payload.revealPauseMs = REVEAL_PAUSE_MS;
 
     const rows = db.prepare(`
       SELECT selected_option, COUNT(*) c FROM quiz_answers

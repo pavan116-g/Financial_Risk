@@ -47,6 +47,10 @@
     <div class="brand"><span class="dial-ring"><svg class="dial" viewBox="0 0 60 60"><use href="#riskDial"/></svg></span>RiskWatch // SOC</div>
     <span class="role-badge">Commander</span>
     <div class="ops-timer-box">T-Minus <span class="ops-timer" data-ops-timer>05:00</span></div>
+    <div id="sidebarQuizStatus" class="sidebar-quiz-status hidden">
+      <span class="sidebar-quiz-dot"></span>
+      <span id="sidebarQuizStatusText"></span>
+    </div>
     <div class="nav-item active" id="navBtnOverview">Security Console</div>
     <div class="nav-item" id="navBtnUsers">Access Logs</div>
     <div class="nav-item" id="navBtnRisks">Threat Database</div>
@@ -72,10 +76,13 @@
       </div>
 
       <div class="kpi-row">
-       
         <div class="kpi">
           <div class="label">Registered Agents</div>
           <div class="value" id="kpiAgents">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Active Now</div>
+          <div class="value" id="kpiActiveNow">—</div>
         </div>
         <div class="kpi">
           <div class="label">Scans Logged</div>
@@ -88,7 +95,11 @@
       </div>
 
       <!-- LIVE EVENT PRESENTER CONTROLLER -->
-      <div class="panel-row" style="grid-template-columns: 1fr 1.5fr; margin-bottom: 20px;">
+      <div class="section-toggle" data-target="sectionFocus">
+        <span>Presenter Controls</span>
+        <svg class="section-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="panel-row" id="sectionFocus" style="grid-template-columns: 1fr 1.5fr; margin-bottom: 20px;">
         <!-- Focus Controller -->
         <div class="panel classified" style="display:flex; flex-direction:column; justify-content:space-between; gap:12px;">
           <div>
@@ -123,7 +134,11 @@
       </div>
 
       <!-- LIVE QUIZ CONTROL (Mentimeter-style) -->
-      <div class="panel-row" style="grid-template-columns: 1fr;">
+      <div class="section-toggle" data-target="sectionQuiz">
+        <span>Live Quiz Control</span>
+        <svg class="section-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="panel-row" id="sectionQuiz" style="grid-template-columns: 1fr;">
         <div class="panel classified">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
             <h3>Live Quiz Control</h3>
@@ -139,7 +154,8 @@
 
           <div id="quizControlPanel" class="hidden">
             <div style="font-family:'Bebas Neue','Space Grotesk',sans-serif; font-size:1.15rem; margin: 8px 0 4px;" id="quizControlQuestion"></div>
-            <div class="mono" style="font-size:0.75rem; color:var(--text-dim); margin-bottom:10px;" id="quizControlTally"></div>
+            <div class="mono" style="font-size:0.75rem; color:var(--text-dim); margin-bottom:6px;" id="quizControlTally"></div>
+            <div id="quizControlNonResponders" class="quiz-non-responders hidden"></div>
 
             <div id="quizControlTimerWrap" class="quiz-timer-wrap hidden">
               <div class="quiz-timer-bar-bg"><div class="quiz-timer-bar-fill" id="quizControlTimerFill"></div></div>
@@ -157,7 +173,11 @@
         </div>
       </div>
 
-      <div class="panel-row" style="grid-template-columns: 1fr;">
+      <div class="section-toggle" data-target="sectionTelemetry">
+        <span>Telemetry: Scans per Operator</span>
+        <svg class="section-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="panel-row" id="sectionTelemetry" style="grid-template-columns: 1fr;">
         <div class="panel">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
             <h3>Telemetry: Scans per Operator</h3>
@@ -169,7 +189,11 @@
         </div>
       </div>
 
-      <div class="panel-row" style="grid-template-columns: 1.6fr 1fr;">
+      <div class="section-toggle" data-target="sectionMatrix">
+        <span>Threat Matrix &amp; Activity Log</span>
+        <svg class="section-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <div class="panel-row" id="sectionMatrix" style="grid-template-columns: 1.6fr 1fr;">
         <div class="panel">
           <h3>Threat Vector Matrix</h3>
           <div class="tbl-scroll" style="max-height: 380px; overflow: auto;">
@@ -205,7 +229,7 @@
             <thead>
               <tr>
                 <th>Operator</th>
-                <th>Encrypted Key</th>
+                <th>Status</th>
                 <th>Authorization</th>
                 <th>Handshake Established</th>
                 <th>Database Scans</th>

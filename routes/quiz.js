@@ -21,7 +21,7 @@ router.get('/state', verifyToken, (req, res) => {
     const myScore = myAnswers.reduce((sum, a) => sum + a.points, 0);
     const myCorrectCount = myAnswers.reduce((sum, a) => sum + a.is_correct, 0);
     const leaderboard = db.prepare(`
-      SELECT COALESCE(u.name, u.username) AS name, SUM(qa.points) AS score
+      SELECT qa.user_id, COALESCE(u.name, u.username) AS name, SUM(qa.points) AS score
       FROM quiz_answers qa
       JOIN users u ON u.id = qa.user_id AND u.role = 'user'
       WHERE qa.quiz_id = ?
@@ -29,7 +29,11 @@ router.get('/state', verifyToken, (req, res) => {
       ORDER BY score DESC
       LIMIT 5
     `).all(activeQuizId);
-    return res.json({ activeQuizId, phase, quiz, myScore, myCorrectCount, totalAnswered: myAnswers.length, leaderboard });
+    const iWon = leaderboard.length > 0 && leaderboard[0].user_id === req.user.id;
+    return res.json({
+      activeQuizId, phase, quiz, myScore, myCorrectCount, totalAnswered: myAnswers.length, iWon,
+      leaderboard: leaderboard.map(({ user_id, ...rest }) => rest),
+    });
   }
 
   const question = db.prepare('SELECT * FROM quiz_questions WHERE quiz_id = ? AND n = ?').get(activeQuizId, activeQuestionN);
@@ -70,6 +74,18 @@ router.get('/state', verifyToken, (req, res) => {
       const row = rows.find(r => r.selected_option === i);
       return row ? row.c : 0;
     });
+
+    const standings = db.prepare(`
+      SELECT qa.user_id, SUM(qa.points) AS score
+      FROM quiz_answers qa
+      JOIN users u ON u.id = qa.user_id AND u.role = 'user'
+      WHERE qa.quiz_id = ?
+      GROUP BY qa.user_id
+      ORDER BY score DESC
+    `).all(activeQuizId);
+    const myIndex = standings.findIndex(s => s.user_id === req.user.id);
+    payload.myRank = myIndex >= 0 ? myIndex + 1 : null;
+    payload.totalPlayers = standings.length;
   }
 
   res.json(payload);

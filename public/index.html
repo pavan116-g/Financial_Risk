@@ -69,7 +69,17 @@
     </div>
     <div class="hello"><span class="avatar-chip" id="whoamiAvatar"></span>Operator Session: <span id="whoami" class="session-name"></span></div>
 
+    <div class="progress-tracker">
+      <div class="progress-tracker-header">
+        <span>Dossier Review Progress</span>
+        <span id="progressCount">0 of 0 reviewed</span>
+      </div>
+      <div class="progress-tracker-bg"><div class="progress-tracker-fill" id="progressFill"></div></div>
+    </div>
+
     <div id="feed" class="feed"></div>
+
+    <div id="toast" class="toast hidden"></div>
 
     <div class="footer-note">Select any threat vector above to expand its dossier profile. Telemetry tracking is active for compliance auditing.</div>
   </div>
@@ -81,6 +91,7 @@
         <span class="quiz-eyebrow" id="quizTheme">Live Quiz</span>
         <span class="quiz-progress" id="quizProgress"></span>
       </div>
+      <div id="quizStepper" class="quiz-stepper hidden"></div>
       <div id="quizTimerWrap" class="quiz-timer-wrap hidden">
         <div class="quiz-timer-bar-bg"><div class="quiz-timer-bar-fill" id="quizTimerFill"></div></div>
         <span class="quiz-timer-text" id="quizTimerText"></span>

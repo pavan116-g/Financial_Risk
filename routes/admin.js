@@ -43,8 +43,10 @@ function clearQuizAutoTimer() {
 }
 
 function revealActiveQuestion() {
-  clearQuizAutoTimer();
+  // Guard first: if we're not actually leaving 'voting' (e.g. a repeat click while already
+  // revealed), do nothing — in particular, don't cancel the pending auto-advance timer.
   if (!global.quizState.activeQuizId || global.quizState.phase !== 'voting') return;
+  clearQuizAutoTimer();
   global.quizState.phase = 'revealed';
   global.quizState.revealedAt = Date.now();
   quizAutoTimer = setTimeout(advanceActiveQuestion, REVEAL_PAUSE_MS);
@@ -85,9 +87,8 @@ router.post('/quiz-control', (req, res) => {
     global.quizState = { activeQuizId: quizId, activeQuestionN: 1, phase: 'voting', questionStartedAt: Date.now(), revealedAt: null };
     quizAutoTimer = setTimeout(revealActiveQuestion, QUESTION_TIME_LIMIT_MS);
   } else if (action === 'reveal') {
-    if (!global.quizState.activeQuizId || global.quizState.phase !== 'voting') {
-      return res.status(400).json({ error: 'No question currently open for voting' });
-    }
+    if (!global.quizState.activeQuizId) return res.status(400).json({ error: 'No active quiz' });
+    // Already revealed (or mid-complete) — treat a repeat click as a harmless no-op rather than an error.
     revealActiveQuestion();
   } else if (action === 'next') {
     if (!global.quizState.activeQuizId) return res.status(400).json({ error: 'No active quiz' });
@@ -140,12 +141,22 @@ router.get('/quiz-live', (req, res) => {
   });
   const answered = optionCounts.reduce((a, b) => a + b, 0);
 
+  const notAnswered = db.prepare(`
+    SELECT COALESCE(u.name, u.username) AS name
+    FROM users u
+    WHERE u.role = 'user'
+      AND u.id NOT IN (
+        SELECT user_id FROM quiz_answers WHERE quiz_id = ? AND question_n = ?
+      )
+    ORDER BY name
+  `).all(activeQuizId, activeQuestionN).map(r => r.name);
+
   res.json({
     activeQuizId, activeQuestionN, phase, totalUsers,
     questionStartedAt, timeLimitMs: QUESTION_TIME_LIMIT_MS,
     revealedAt, revealPauseMs: REVEAL_PAUSE_MS,
     question: question.question, options, correct: question.correct, reveal: question.reveal,
-    optionCounts, answered
+    optionCounts, answered, notAnswered
   });
 });
 
@@ -184,6 +195,9 @@ router.get('/quiz-results', (req, res) => {
   res.json({ quiz, perQuestion, perUser, totalQuestions: questions.length });
 });
 
+// How recently someone must have clicked a risk card or answered a quiz question to count as "active now"
+const ACTIVE_WINDOW_SQL = "datetime('now', '-10 minutes')";
+
 // Total clicks per risk card, plus click counts per operator
 router.get('/summary', (req, res) => {
   const perRisk = db.prepare(`
@@ -209,7 +223,12 @@ router.get('/summary', (req, res) => {
     SELECT
       (SELECT COUNT(*) FROM users WHERE role = 'user') AS total_users,
       (SELECT COUNT(*) FROM clicks WHERE user_id IN (SELECT id FROM users WHERE role = 'user')) AS total_clicks,
-      (SELECT COUNT(DISTINCT user_id) FROM clicks WHERE user_id IN (SELECT id FROM users WHERE role = 'user')) AS active_users
+      (SELECT COUNT(DISTINCT user_id) FROM clicks WHERE user_id IN (SELECT id FROM users WHERE role = 'user')) AS active_users,
+      (SELECT COUNT(DISTINCT user_id) FROM (
+         SELECT user_id, clicked_at AS ts FROM clicks
+         UNION ALL
+         SELECT user_id, answered_at AS ts FROM quiz_answers
+       ) WHERE user_id IN (SELECT id FROM users WHERE role = 'user') AND ts >= ${ACTIVE_WINDOW_SQL}) AS active_now
   `).get();
 
   res.json({ perRisk, perUser, totals });
@@ -217,7 +236,7 @@ router.get('/summary', (req, res) => {
 
 // Per-user x per-risk matrix, plus each user's most recent activity
 router.get('/users-activity', (req, res) => {
-  const users = db.prepare(`SELECT id, username, name, role, password_hash, created_at FROM users WHERE role = 'user' ORDER BY username`).all();
+  const users = db.prepare(`SELECT id, username, name, role, created_at FROM users WHERE role = 'user' ORDER BY username`).all();
   const risks = db.prepare(`SELECT id, title, icon FROM risks ORDER BY sort_order`).all();
   const clicks = db.prepare(`SELECT user_id, risk_id, COUNT(*) AS n, MAX(clicked_at) AS last_click
                               FROM clicks GROUP BY user_id, risk_id`).all();
@@ -234,11 +253,21 @@ router.get('/users-activity', (req, res) => {
   const lastMap = {};
   lastActivity.forEach(l => { lastMap[l.user_id] = l; });
 
+  const activeNowRows = db.prepare(`
+    SELECT DISTINCT user_id FROM (
+      SELECT user_id, clicked_at AS ts FROM clicks
+      UNION ALL
+      SELECT user_id, answered_at AS ts FROM quiz_answers
+    ) WHERE ts >= ${ACTIVE_WINDOW_SQL}
+  `).all();
+  const activeNowSet = new Set(activeNowRows.map(r => r.user_id));
+
   res.json({
     users: users.map(u => ({
       ...u,
       total_clicks: lastMap[u.id]?.total || 0,
       last_click: lastMap[u.id]?.last_click || null,
+      is_active: activeNowSet.has(u.id),
     })),
     risks,
     matrix,

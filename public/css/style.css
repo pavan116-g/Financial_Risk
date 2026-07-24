@@ -587,6 +587,35 @@ body {
   color: var(--amber);
 }
 
+.risk-top-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.reviewed-badge {
+  display: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 20px;
+  color: var(--safe);
+  border: 1px solid rgba(0, 230, 118, 0.4);
+  background: rgba(0, 230, 118, 0.08);
+  white-space: nowrap;
+}
+.risk-card.reviewed .reviewed-badge {
+  display: inline-block;
+  animation: quizContentIn 0.3s ease both;
+}
+.risk-card.reviewed .risk-icon {
+  border-color: rgba(0, 230, 118, 0.35);
+}
+
 .risk-short {
   color: var(--text-dim);
   font-size: 0.85rem;
@@ -628,6 +657,61 @@ body {
 .risk-card:hover .tap-hint {
   box-shadow: 0 0 10px rgba(255, 0, 51, 0.3);
   border-color: var(--accent);
+}
+
+/* ---------- Dossier review progress tracker ---------- */
+.progress-tracker {
+  padding: 10px 20px 4px;
+}
+.progress-tracker-header {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.progress-tracker-header span:first-child { color: var(--text-dim); }
+.progress-tracker-header span:last-child { color: var(--accent-light); font-weight: 700; }
+.progress-tracker-bg {
+  height: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-tracker-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent-gradient);
+  width: 0%;
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(12px);
+  background: var(--surface-2);
+  border: 1px solid var(--border-focus);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 0, 51, 0.15);
+  opacity: 0;
+  z-index: 150;
+  max-width: 85%;
+  text-align: center;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .footer-note {
@@ -712,6 +796,7 @@ body {
 }
 
 .quiz-card {
+  position: relative;
   width: 100%;
   max-width: 380px;
   background: var(--surface);
@@ -995,6 +1080,77 @@ body {
   border-bottom: 1px dashed var(--border);
 }
 .quiz-leaderboard-row:last-child { border-bottom: none; }
+.quiz-leaderboard-row.first {
+  color: var(--amber);
+  font-weight: 700;
+}
+
+/* ---------- Quiz progress stepper ---------- */
+.quiz-stepper {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 16px;
+}
+.quiz-step {
+  flex: 1;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.quiz-step.done {
+  background: var(--safe);
+  border-color: var(--safe);
+}
+.quiz-step.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  animation: opsPulseGlow 1.6s ease-in-out infinite;
+}
+
+/* ---------- Reveal status row (points + rank) ---------- */
+.quiz-status-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.quiz-status-row .quiz-points-earned { flex: 1; margin-bottom: 0; }
+.quiz-rank-chip {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--amber);
+  border: 1px dashed rgba(255, 179, 0, 0.4);
+  background: rgba(255, 179, 0, 0.08);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+/* ---------- Winner confetti ---------- */
+.quiz-confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.quiz-confetti span {
+  position: absolute;
+  top: -10px;
+  left: calc(var(--i) * 6.5%);
+  width: 6px;
+  height: 12px;
+  background: hsl(calc(var(--i) * 23), 90%, 60%);
+  opacity: 0.9;
+  animation: confettiFall 1.8s ease-in calc(var(--i) * 0.06s) both;
+}
+@keyframes confettiFall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(340px) rotate(360deg); opacity: 0; }
+}
 
 /* Locked Card Styling */
 .risk-card.locked {

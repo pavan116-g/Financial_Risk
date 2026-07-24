@@ -753,3 +753,109 @@ tr:hover td {
   from { opacity: 0; transform: translateX(-8px); }
   to { opacity: 1; transform: translateX(0); }
 }
+
+/* ---------- Sidebar live quiz status badge ---------- */
+.sidebar-quiz-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  border: 1px dashed rgba(255, 0, 51, 0.4);
+  background: rgba(255, 0, 51, 0.06);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sidebar-quiz-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  animation: opsHeartbeat 1.4s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(255, 0, 51, 0.7);
+}
+
+/* ---------- Collapsible Overview sections ---------- */
+.section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 10px 4px;
+  margin-bottom: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  border-bottom: 1px dashed var(--border);
+}
+.section-toggle:hover { color: var(--text); }
+.section-chevron {
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+}
+.section-toggle.collapsed .section-chevron {
+  transform: rotate(-90deg);
+}
+.section-toggle + .panel-row {
+  overflow: hidden;
+  max-height: 2000px;
+  transition: max-height 0.35s ease, opacity 0.25s ease, margin 0.35s ease;
+  opacity: 1;
+}
+.section-toggle.collapsed + .panel-row {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* ---------- Operator status pill ---------- */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 9px;
+  border-radius: 20px;
+}
+.status-pill.active {
+  color: var(--safe);
+  border: 1px solid rgba(0, 230, 118, 0.4);
+  background: rgba(0, 230, 118, 0.08);
+}
+.status-pill.active::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--safe);
+  animation: opsHeartbeat 1.4s ease-in-out infinite;
+}
+.status-pill.inactive {
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  background: transparent;
+}
+
+/* ---------- Live quiz non-responder list ---------- */
+.quiz-non-responders {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+  line-height: 1.6;
+}
+.quiz-non-responders b { color: var(--accent-light); }

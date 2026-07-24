@@ -137,21 +137,24 @@ async function loadRisks() {
           const uniqueUsers = r.unique_users || 0;
           const totalClicks = r.total_clicks || 0;
           const pct = totalUsersCount > 0 ? Math.round((uniqueUsers / totalUsersCount) * 100) : 0;
-          
+
           const scanText = card.querySelector('.stats-header span:last-child');
           if (scanText) scanText.textContent = `${uniqueUsers} of ${totalUsersCount} scanned`;
-          
+
           const bar = card.querySelector('.stats-bar-fill');
           if (bar) bar.style.width = `${pct}%`;
-          
+
           const tallyText = card.querySelector('.stats-footer span:last-child');
           if (tallyText) tallyText.textContent = `${totalClicks} scans`;
+
+          markCardReviewed(card, (r.my_clicks || 0) > 0);
         }
       });
     }
 
     // Apply Presenter Focus Locks
     updateCardsLockedState(activeFocusId, focusLocked);
+    updateProgressTracker(risksList);
   } catch (err) {
     if (feed.children.length === 0) {
       feed.innerHTML = `<div class="error-msg" style="margin: 20px;">Failed to load risks: ${err.message}. Please restart the backend server and refresh.</div>`;
@@ -163,16 +166,21 @@ function renderCard(risk, totalUsers) {
   const uniqueUsers = risk.unique_users || 0;
   const totalClicks = risk.total_clicks || 0;
   const pct = totalUsers > 0 ? Math.round((uniqueUsers / totalUsers) * 100) : 0;
-  
+  const reviewed = (risk.my_clicks || 0) > 0;
+
   const el = document.createElement('div');
   el.className = 'risk-card';
   el.setAttribute('data-risk-id', risk.id);
+  if (reviewed) el.classList.add('reviewed');
   el.innerHTML = `
     <div class="risk-icon">${risk.icon}</div>
     <div class="risk-body">
       <div class="risk-top">
         <div class="risk-title">${risk.title}</div>
-        <div class="severity-tag ${risk.severity}">${risk.severity}</div>
+        <div class="risk-top-tags">
+          <span class="reviewed-badge">✓ Reviewed</span>
+          <div class="severity-tag ${risk.severity}">${risk.severity}</div>
+        </div>
       </div>
       <p class="risk-short">${risk.short_desc}</p>
       <div class="risk-detail">
@@ -196,20 +204,61 @@ function renderCard(risk, totalUsers) {
   `;
   el.addEventListener('click', (e) => {
     if (e.target.closest('.risk-detail')) return;
-    if (el.classList.contains('locked')) return; // Block clicks on locked cards
-    
+    if (el.classList.contains('locked')) {
+      showToast('Wait for the Commander to unlock this dossier.');
+      return;
+    }
+
     const wasOpen = el.classList.contains('open');
     el.classList.toggle('open');
     const hint = el.querySelector('.tap-hint');
-    
+
     if (!wasOpen) {
       if (hint) hint.textContent = 'Close Dossier';
       trackClick(risk.id);
+      markCardReviewed(el, true);
     } else {
       if (hint) hint.textContent = 'Initiate Scan';
     }
   });
   return el;
+}
+
+function markCardReviewed(card, reviewed) {
+  const wasReviewed = card.classList.contains('reviewed');
+  card.classList.toggle('reviewed', reviewed);
+  if (reviewed && !wasReviewed) {
+    updateProgressTracker();
+  }
+}
+
+function updateProgressTracker(risksList) {
+  const countEl = document.getElementById('progressCount');
+  const fillEl = document.getElementById('progressFill');
+  if (!countEl || !fillEl) return;
+
+  const cards = feed.querySelectorAll('.risk-card');
+  const total = risksList ? risksList.length : cards.length;
+  const reviewed = feed.querySelectorAll('.risk-card.reviewed').length;
+  const pct = total > 0 ? Math.round((reviewed / total) * 100) : 0;
+
+  countEl.textContent = `${reviewed} of ${total} reviewed`;
+  fillEl.style.width = `${pct}%`;
+}
+
+let toastTimeout;
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.remove('hidden');
+  void toast.offsetWidth;
+  toast.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.classList.add('hidden'), 300);
+  }, 2200);
 }
 
 function updateCardsLockedState(activeFocusId, focusLocked) {
@@ -254,6 +303,7 @@ const quizOverlay = document.getElementById('quizOverlay');
 const quizTheme = document.getElementById('quizTheme');
 const quizProgress = document.getElementById('quizProgress');
 const quizBody = document.getElementById('quizBody');
+const quizStepper = document.getElementById('quizStepper');
 const quizTimerWrap = document.getElementById('quizTimerWrap');
 const quizTimerFill = document.getElementById('quizTimerFill');
 const quizTimerText = document.getElementById('quizTimerText');
@@ -283,6 +333,27 @@ async function pollQuizState() {
   } catch (e) { /* non-blocking */ }
 }
 
+let quizStepperKey = null;
+function renderQuizStepper(data) {
+  if (!quizStepper) return;
+  if (data.phase === 'complete' || !data.totalQuestions) {
+    quizStepper.classList.add('hidden');
+    quizStepperKey = null;
+    return;
+  }
+  quizStepper.classList.remove('hidden');
+
+  const key = `${data.totalQuestions}|${data.questionN}|${data.phase}`;
+  if (key === quizStepperKey) return;
+  quizStepperKey = key;
+
+  quizStepper.innerHTML = Array.from({ length: data.totalQuestions }, (_, i) => {
+    const n = i + 1;
+    const cls = n < data.questionN ? 'done' : n === data.questionN ? (data.phase === 'revealed' ? 'done' : 'active') : '';
+    return `<span class="quiz-step ${cls}"></span>`;
+  }).join('');
+}
+
 function playQuizEnterAnimation() {
   quizBody.classList.remove('quiz-anim-in');
   void quizBody.offsetWidth; // force reflow so the animation restarts
@@ -306,6 +377,7 @@ function renderQuiz(data) {
   quizOverlay.classList.remove('hidden');
   quizTheme.textContent = data.quiz ? data.quiz.theme : 'Live Quiz';
   quizProgress.textContent = data.phase === 'complete' ? 'Complete' : `Question ${data.questionN} of ${data.totalQuestions}`;
+  renderQuizStepper(data);
 
   if (data.phase === 'voting' && data.questionStartedAt) {
     quizTimer = { active: true, questionStartedAt: data.questionStartedAt, timeLimitMs: data.timeLimitMs || 35000 };
@@ -385,7 +457,10 @@ function renderQuizRevealed(data) {
   const totalVotes = data.optionCounts.reduce((a, b) => a + b, 0) || 1;
   quizBody.innerHTML = `
     <p class="quiz-question">${data.question}</p>
-    ${data.myAnswer !== null ? `<div class="quiz-points-earned ${data.myCorrect ? 'positive' : ''}">${data.myCorrect ? `+${data.myPoints} points` : 'No points this round'}</div>` : ''}
+    <div class="quiz-status-row">
+      ${data.myAnswer !== null ? `<div class="quiz-points-earned ${data.myCorrect ? 'positive' : ''}">${data.myCorrect ? `+${data.myPoints} points` : 'No points this round'}</div>` : '<div></div>'}
+      ${data.myRank ? `<div class="quiz-rank-chip">Rank #${data.myRank} of ${data.totalPlayers}</div>` : ''}
+    </div>
     <div class="quiz-results">
       ${data.options.map((opt, i) => {
         const count = data.optionCounts[i] || 0;
@@ -415,16 +490,19 @@ function renderQuizRevealed(data) {
 }
 
 function renderQuizComplete(data) {
+  const iWon = !!data.iWon;
+
   quizBody.innerHTML = `
-    <p class="quiz-question">Quiz Complete!</p>
+    ${iWon ? '<div class="quiz-confetti">' + Array.from({ length: 16 }, (_, i) => `<span style="--i:${i}"></span>`).join('') + '</div>' : ''}
+    <p class="quiz-question">${iWon ? '🏆 You Won!' : 'Quiz Complete!'}</p>
     <div class="quiz-score">${data.myScore} pts</div>
     <div class="quiz-score-sub">${data.myCorrectCount} of ${data.totalAnswered} correct</div>
     ${data.leaderboard && data.leaderboard.length ? `
       <div class="quiz-leaderboard">
         <div class="quiz-leaderboard-title">Top Scores</div>
         ${data.leaderboard.map((l, i) => `
-          <div class="quiz-leaderboard-row">
-            <span>#${i + 1} ${l.name}</span>
+          <div class="quiz-leaderboard-row ${i === 0 ? 'first' : ''}">
+            <span>${i === 0 ? '🏆' : `#${i + 1}`} ${l.name}</span>
             <span>${l.score} pts</span>
           </div>
         `).join('')}

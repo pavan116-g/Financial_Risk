@@ -77,6 +77,8 @@ async function loadSummary() {
 
   document.getElementById('kpiScans').textContent = totals.total_clicks;
   document.getElementById('kpiVectors').textContent = perRisk.length;
+  const kpiActiveNow = document.getElementById('kpiActiveNow');
+  if (kpiActiveNow) kpiActiveNow.textContent = totals.active_now || 0;
 
   // Populate Risk Cards Directory Tab Table
   const risksTabTbody = document.getElementById('tabRisksTableBody');
@@ -210,7 +212,7 @@ function renderUsersDirectory(list) {
       return `
         <tr>
           <td style="font-weight: 500;">${displayName}</td>
-          <td class="mono" style="font-size:0.7rem; color:var(--text-dim); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${u.password_hash}">${u.password_hash}</td>
+          <td><span class="status-pill ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Active' : 'Offline'}</span></td>
           <td><span class="pill mono" style="background:rgba(255,0,51,0.1); border:1px solid rgba(255,0,51,0.3); color:#f5f5f5; font-size:0.65rem;">${u.role}</span></td>
           <td class="mono" style="font-size:0.75rem;color:var(--text-dim);">${new Date(u.created_at + 'Z').toLocaleString()}</td>
           <td style="font-weight: 600; color:var(--accent);">${u.total_clicks}</td>
@@ -262,6 +264,13 @@ async function loadRecent() {
     `;
   }).join('') || `<tr><td colspan="3" style="color:var(--text-dim);">No clicks recorded yet.</td></tr>`;
 }
+
+// Collapsible Overview sections — click a section header to toggle its panel-row
+document.querySelectorAll('.section-toggle').forEach(toggle => {
+  toggle.addEventListener('click', () => {
+    toggle.classList.toggle('collapsed');
+  });
+});
 
 // Tab Switching Configuration
 const tabList = [
@@ -561,6 +570,7 @@ async function loadQuizState() {
     if (pill) pill.textContent = 'No quiz active';
     if (launcher) launcher.classList.remove('hidden');
     if (controlPanel) controlPanel.classList.add('hidden');
+    updateSidebarQuizStatus(null);
     return;
   }
 
@@ -570,8 +580,24 @@ async function loadQuizState() {
     : `${quizTitle} · Q${data.activeQuestionN} · ${data.phase === 'revealed' ? 'Revealed' : 'Voting'}`;
   if (launcher) launcher.classList.add('hidden');
   if (controlPanel) controlPanel.classList.remove('hidden');
+  updateSidebarQuizStatus(data);
 
   await loadQuizLive();
+}
+
+function updateSidebarQuizStatus(data) {
+  const wrap = document.getElementById('sidebarQuizStatus');
+  const text = document.getElementById('sidebarQuizStatusText');
+  if (!wrap || !text) return;
+
+  if (!data || !data.activeQuizId || data.phase === 'complete') {
+    wrap.classList.add('hidden');
+    return;
+  }
+  wrap.classList.remove('hidden');
+  text.textContent = data.phase === 'revealed'
+    ? `Quiz Live · Q${data.activeQuestionN} Revealed`
+    : `Quiz Live · Q${data.activeQuestionN} Voting`;
 }
 
 async function loadQuizLive() {
@@ -601,9 +627,10 @@ async function loadQuizLive() {
     if (timerWrap) timerWrap.classList.add('hidden');
   }
 
-  // The quiz paces itself automatically now — these buttons just let a presenter skip a step early.
-  if (btnReveal) btnReveal.classList.toggle('hidden', data.phase !== 'voting');
-  if (btnNext) btnNext.classList.toggle('hidden', data.phase !== 'revealed');
+  // The quiz auto-paces via the timer, but both buttons stay available as manual overrides
+  // throughout voting/revealed — only hidden once the quiz is complete.
+  if (btnReveal) btnReveal.classList.toggle('hidden', data.phase === 'complete');
+  if (btnNext) btnNext.classList.toggle('hidden', data.phase === 'complete');
 
   if (data.phase === 'complete') {
     const key = `complete|${data.activeQuizId}`;
@@ -623,6 +650,16 @@ async function loadQuizLive() {
   if (tally) tally.textContent = data.phase === 'revealed'
     ? `${data.answered} of ${data.totalUsers} answered — advancing automatically`
     : `${data.answered} of ${data.totalUsers} answered`;
+
+  const nonResponders = document.getElementById('quizControlNonResponders');
+  if (nonResponders) {
+    if (data.phase === 'voting' && data.notAnswered && data.notAnswered.length > 0) {
+      nonResponders.classList.remove('hidden');
+      nonResponders.innerHTML = `Still waiting on: <b>${data.notAnswered.join(', ')}</b>`;
+    } else {
+      nonResponders.classList.add('hidden');
+    }
+  }
 
   // Only reveal which option is correct once everyone's had a chance to vote (or the presenter reveals) —
   // otherwise the presenter's own screen spoils the answer the instant a question opens.

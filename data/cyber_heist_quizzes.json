@@ -47,34 +47,6 @@
           "options": ["To test if the ID works", "To get you used to approving without reading", "It's a mistake", "To check your balance"],
           "correct": 1,
           "reveal": "Small amounts build the habit of approving without checking. The large request comes later."
-        },
-        {
-          "n": 7,
-          "question": "Your phone shows a warning before installing an APK. Why do most victims ignore it?",
-          "options": ["They don't read English", "The warning is unclear", "They're already in a panic the scammer created", "They trust their phone"],
-          "correct": 2,
-          "reveal": "Urgency is manufactured first, precisely so safety warnings get overridden."
-        },
-        {
-          "n": 8,
-          "question": "Which target profile does the digital arrest scam actually prefer?",
-          "options": ["People who are easily frightened", "People unfamiliar with technology", "People with assets and reputations to protect", "Elderly people living alone"],
-          "correct": 2,
-          "reveal": "Victims include doctors, professors and retired bankers. Education is not protection here."
-        },
-        {
-          "n": 9,
-          "question": "A wedding invite APK spreads to your contacts automatically. What makes this the most effective delivery method?",
-          "options": ["It reaches many people fast", "WhatsApp doesn't block it", "The victim's trust is inherited by the attacker", "Files look harmless"],
-          "correct": 2,
-          "reveal": "You don't just become a victim, you become the delivery mechanism. Your friends trust you, not the scammer."
-        },
-        {
-          "n": 10,
-          "question": "India's cyber fraud losses tripled in one year. What's the most likely single biggest driver?",
-          "options": ["More internet users", "Weaker bank security", "Scams shifting to high-value, longer cons", "Better reporting"],
-          "correct": 2,
-          "reveal": "Losses jumped from Rs 7,465 crore in 2023 to Rs 22,845 crore in 2024, while case growth was far slower."
         }
       ]
     },
@@ -124,34 +96,6 @@
           "options": ["Revenue", "Filtering serious users", "Establishing that you'll pay them", "Covering costs"],
           "correct": 2,
           "reveal": "The small payment builds the relationship. It targets students and first jobbers specifically."
-        },
-        {
-          "n": 7,
-          "question": "Why do betting and loan apps demand access to your contacts and gallery?",
-          "options": ["For account verification", "To personalise ads", "To use against you later", "To detect fraud"],
-          "correct": 2,
-          "reveal": "That access becomes the extortion tool once you owe them or want out."
-        },
-        {
-          "n": 8,
-          "question": "Someone shows you real withdrawal screenshots from an investment platform. Why isn't this proof?",
-          "options": ["Screenshots are edited", "Early withdrawals are paid to attract more money", "The platform is new", "Amounts are small"],
-          "correct": 1,
-          "reveal": "Early payouts are the marketing budget. They're funded by the people who come next."
-        },
-        {
-          "n": 9,
-          "question": "Half of UPI fraud victims never report. What's the most damaging consequence?",
-          "options": ["Underestimated statistics", "Victims lose recovery chances", "Police can't link cases to find networks", "Banks avoid liability"],
-          "correct": 2,
-          "reveal": "Individual losses are recoverable. Unreported patterns mean the network behind them keeps operating."
-        },
-        {
-          "n": 10,
-          "question": "What makes guaranteed returns a structural impossibility, not just a lie?",
-          "options": ["Markets are volatile", "SEBI prohibits it", "Guaranteed return means no risk — which pays nearly nothing", "Nobody can predict markets"],
-          "correct": 2,
-          "reveal": "Risk and return are linked. A genuinely guaranteed return would pay close to a government bond, not 40 percent."
         }
       ]
     },
@@ -201,34 +145,6 @@
           "options": ["It's more convenient", "It costs the seller something to fake", "It's regulated", "It proves they exist"],
           "correct": 1,
           "reveal": "Padlocks and on-site reviews are trivially faked. Agreeing to be paid only on delivery is not."
-        },
-        {
-          "n": 7,
-          "question": "A visa agent charges everything upfront. What incentive problem does that create?",
-          "options": ["They may overcharge", "They're paid whether or not you get the visa", "No refund is possible", "They may disappear"],
-          "correct": 1,
-          "reveal": "Legitimate agents charge in stages tied to filed applications, so they're paid for outcomes."
-        },
-        {
-          "n": 8,
-          "question": "Recovery rates drop sharply after the first few hours of a fraud. Why?",
-          "options": ["Police get busy", "Banks close", "Money is split across many accounts and withdrawn", "Evidence disappears"],
-          "correct": 2,
-          "reveal": "An Indore professor lost Rs 33 lakh and recovered Rs 26.45 lakh because accounts were frozen fast. Dial 1930."
-        },
-        {
-          "n": 9,
-          "question": "Which is hardest to defend against, and why?",
-          "options": ["Phishing — it's constant", "Malware — it's invisible", "Insider fraud — the access is legitimate", "Deepfakes — they're convincing"],
-          "correct": 2,
-          "reveal": "You can block a stranger. You cannot easily block someone you already decided to trust."
-        },
-        {
-          "n": 10,
-          "question": "What single behaviour would prevent the largest share of everything covered today?",
-          "options": ["Strong passwords", "Antivirus software", "Verifying through a channel they didn't give you", "Avoiding unknown links"],
-          "correct": 2,
-          "reveal": "Almost every scam depends on you staying inside the channel they control. Stepping outside it breaks nearly all of them."
         }
       ]
     }
